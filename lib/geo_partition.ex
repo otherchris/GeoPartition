@@ -46,6 +46,11 @@ defmodule GeoPartition do
   end
 
   def poly_to_multi(shape) do
-    %Geo.MultiPolygon{}
+    shape_map = shape |> Geo.JSON.encode!
+
+    Map.put(shape_map, "coordinates", [shape_map["coordinates"]])
+    |> Map.put("type", "MultiPolygon")
+    |> Geo.JSON.decode!
+    |> IO.inspect
   end
 end
