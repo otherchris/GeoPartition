@@ -1,10 +1,5 @@
 defmodule GeoPartition.Util do
 
-  def area(poly) do
-    long_factor = get_long_factor(poly)
-    36.02
-  end
-
   def get_long_factor(poly = %{__struct__: Geo.MultiPolygon}) do
     poly.coordinates
     |> get_long_factor
@@ -18,6 +13,22 @@ defmodule GeoPartition.Util do
     |> deg_to_rad
     |> :math.cos
     |> Kernel.*(69.172)
+  end
+
+  def area(shape = %{__struct__: Geo.Polygon}) do
+    shape.coordinates
+    |> get_all_coords
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.map(&det_seg(&1))
+    |> List.foldr(0, &Kernel.+(&1, &2))
+    |> abs
+    |> Kernel.*(get_long_factor(shape.coordinates))
+    |> Kernel.*(69.172)
+    |> Kernel./(2)
+  end
+
+  defp det_seg([{a, b}, {c, d}]) do
+    (b * c) - (a * d)
   end
 
   def get_all_coords(poly) when is_list(poly) do

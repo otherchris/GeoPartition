@@ -90,15 +90,6 @@ defmodule GeoPartition.UtilTest do
   ]]
   }
   """
-  describe "area calc" do
-    test "basic triangle" do
-      poly = @triangle
-             |> Poison.decode!
-             |> Geo.JSON.decode!
-      assert GeoPartition.Util.area(poly) == 36.02
-    end
-  end
-
   describe "get all coords" do
     test "get_all_coords" do
       arr = [[1, 2], [[[3, 4, 5]], [7]], 8]
@@ -127,7 +118,6 @@ defmodule GeoPartition.UtilTest do
                |> Poison.decode!
                |> Geo.JSON.decode!
                |> GeoPartition.Util.polygon_errors
-               |> IO.inspect
       assert result == ["Cannot process Polygon with ring intersection"]
     end
   end
@@ -150,6 +140,13 @@ defmodule GeoPartition.UtilTest do
 
     test "crosses hole" do
       assert Util.contains(Shapes.rect_with_hole, Shapes.line_crosses_simple_rect) == false
+    end
+  end
+
+  describe "calculate area of a polygon" do
+    test "find area" do
+      poly = %Geo.Polygon{coordinates: Shapes.monster_multi_out.coordinates |> hd}
+      assert Util.area(poly) == 161.89243343361437
     end
   end
 end
