@@ -12,7 +12,7 @@ defmodule GeoPartition do
   end
 
   def partition(list) when is_list(list) do
-    Enum.map(list, &partition_shape(&1))
+    Enum.map(list, &partition_shape(&1)) |> List.flatten
   end
 
   def partition_shape(shape) when is_binary(shape) do
@@ -38,7 +38,15 @@ defmodule GeoPartition do
   end
 
   def partition_shape(shape = %{__struct__: Geo.MultiPolygon}) do
-    "good"
+    with [] <- GeoPartition.Util.polygon_errors(shape) do
+      new_coords = shape
+                   |> GeoPartition.Util.de_hole
+                   |> Map.get(:coordinates)
+      Map.put(shape, :coordinates, new_coords)
+      "good"
+    else
+      [err|_] -> {:error, err}
+    end
   end
 
   def partition_shape(shape) do
@@ -51,6 +59,5 @@ defmodule GeoPartition do
     Map.put(shape_map, "coordinates", [shape_map["coordinates"]])
     |> Map.put("type", "MultiPolygon")
     |> Geo.JSON.decode!
-    |> IO.inspect
   end
 end
