@@ -23,7 +23,8 @@ defmodule GeoPartition.MixProject do
     [
       {:poison, "~> 3.1"},
       {:mix_test_watch, "~> 0.8", only: :dev, runtime: false},
-      {:geo, "~> 3.0"}
+      {:geo, "~> 3.0"},
+      {:topo, git: "git@github.com:otherchris/topo.git"}
     ]
   end
 end

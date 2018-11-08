@@ -1,6 +1,11 @@
 %{
+  "distance": {:hex, :distance, "0.2.2", "76f7cd6b6e21b3c1430a0776d594955baafd9ebf1133f98f62cdbb180074215a", [:mix], [], "hexpm"},
+  "envelope": {:git, "git@github.com:otherchris/envelope_ex.git", "66a5c113e07664f560920162f7dcf4f46bda6a0f", []},
   "file_system": {:hex, :file_system, "0.2.6", "fd4dc3af89b9ab1dc8ccbcc214a0e60c41f34be251d9307920748a14bf41f1d3", [:mix], [], "hexpm"},
   "geo": {:hex, :geo, "3.0.0", "bb1e9baac6031c5bbddcde4937af1c1ab1cbfbbe2f7870038fdfc93a9cad4359", [:mix], [], "hexpm"},
   "mix_test_watch": {:hex, :mix_test_watch, "0.9.0", "c72132a6071261893518fa08e121e911c9358713f62794a90c95db59042af375", [:mix], [{:file_system, "~> 0.2.1 or ~> 0.3", [hex: :file_system, repo: "hexpm", optional: false]}], "hexpm"},
   "poison": {:hex, :poison, "3.1.0", "d9eb636610e096f86f25d9a46f35a9facac35609a7591b3be3326e99a0484665", [:mix], [], "hexpm"},
+  "seg_seg": {:hex, :seg_seg, "0.1.1", "a7a5c072ad9de3af1bb5e155492c2c7a0fd5f381700efe9b9ba38c95fb997bd7", [:mix], [{:vector, "~> 1.0", [hex: :vector, repo: "hexpm", optional: false]}], "hexpm"},
+  "topo": {:git, "git@github.com:otherchris/topo.git", "228c2c371c5e89cd1297662da7701c52c5d8b167", []},
+  "vector": {:hex, :vector, "1.0.0", "ca9bfdf6cac8c9d4ceb490e75420578183c85b75e8df894e0b990823e13e67f0", [:mix], [], "hexpm"},
 }
