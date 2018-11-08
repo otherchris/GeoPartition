@@ -67,83 +67,11 @@ defmodule GeoPartition.Util do
     end
   end
 
-  def de_hole(shape = %{__struct__: Geo.MultiPolygon}) do
-    new_polys = Enum.map(shape.coordinates, &de_hole(%Geo.Polygon{coordinates: &1}))
-    %Geo.MultiPolygon{coordinates: new_polys}
+  def polys_to_multi(list) when is_list(list) do
+    %Geo.MultiPolygon{coordinates: Enum.map(list, &(&1.coordinates))}
   end
 
-  def de_hole(shape = %{__struct__: Geo.Polygon}) do
-    if length(shape.coordinates) == 1 do
-      [shape]
-    else
-      de_hole(shape.coordinates, 0)
-    end
-  end
-
-  @doc """
-  if we have iterated through the next hole, rotate the holes
-  if the hole is not contained throw it out
-  see if a line from vertex zero of outer ring to vertex iter of hole intersects anything
-  either return deholed list or try next vertex
-  """
-  def de_hole(shape = [[{a,b}|_]|_], iter) when is_integer(iter) do
-    cond do
-      #one ring, nothing to do
-      length(shape) == 1 -> shape
-      #if we have iterated through the next hole, rotate the holes
-      iter > length(Enum.at(shape, 1)) - 1 ->
-        if length(tl(shape)) == 1 do
-          de_hole([rotate_list(hd(shape))] ++ tl(shape), 0)
-        else
-          de_hole([hd(shape)] ++ rotate_list(tl(shape)), 0)
-        end
-      #if the hole is not contained throw it out
-      !Topo.contains?(
-        %Geo.Polygon{coordinates: [Enum.at(shape, 0)]},
-        %Geo.Polygon{coordinates: [Enum.at(shape, 1)]}
-      ) ->
-        de_hole(%Geo.Polygon{coordinates: [hd(shape)] ++ tl(tl(shape))})
-      true ->
-        line = %Geo.Polygon{coordinates: [[
-          shape |> hd |> hd,
-          Enum.at(shape, 1) |> Enum.at(iter),
-          nudge(shape |> hd |> hd),
-          shape |> hd |> hd
-        ]]}
-        inters = shape
-                 |> tl
-                 |> tl
-                 |> Enum.map(fn(x) ->
-                   cond do
-                     Topo.intersects?(%Geo.LineString{coordinates: x}, line) -> true
-                     !Topo.contains?(%Geo.Polygon{coordinates: hd(shape)}, line) -> true
-                     true -> false
-                   end
-                 end)
-        if length(Enum.filter(inters, &(&1))) > 0 do
-          de_hole(shape, iter + 1)
-        else
-          de_hole(hd(shape), tl(shape), iter)
-        end
-    end
-  end
-
-
-
-  def de_hole(outer, rest, index) when is_integer(index) do
-    inner = hd(rest)
-    new_outer = outer
-    ++ Enum.slice(inner, index..-1)
-    ++ Enum.slice(inner, 0..index)
-    ++ [hd(outer)]
-    de_hole([new_outer] ++ tl(rest), 0)
-  end
-
-  defp rotate_list(list) do
-    tl(list) ++ [hd(list)]
-  end
-
-  defp nudge({a, b}) do
-    {a + 0.00000001, b + 0.00000001}
+  def contains(poly = %{__struct__: Geo.Polygon}, line = %{__struct__: Geo.LineString}) do
+    Topo.contains?(poly, line)
   end
 end
