@@ -129,6 +129,13 @@ defmodule GeoPartition.UtilTest do
     end
   end
 
+  describe "multipolygon to poly_list" do
+    test "non trivial multipolygon" do
+      list = [Shapes.triangle_1, Shapes.triangle_2, Shapes.simple_rect]
+      assert Util.multi_to_polys(Shapes.multi_polygon_basic) == list
+    end
+  end
+
   describe "test containment of line in poly" do
     test "trivial is contained" do
       assert Util.contains(Shapes.simple_rect, Shapes.line_inside_simple_rect) == true
@@ -147,6 +154,18 @@ defmodule GeoPartition.UtilTest do
     test "find area" do
       poly = %Geo.Polygon{coordinates: Shapes.monster_multi_out.coordinates |> hd}
       assert Util.area(poly) == 161.89243343361437
+    end
+
+    test "add area to props" do
+      poly = %Geo.Polygon{coordinates: Shapes.monster_multi_out.coordinates |> hd}
+      new_poly = Util.add_area(poly)
+      assert new_poly.properties.area == 161.89243343361437
+    end
+
+    test "change existing area" do
+      poly = %Geo.Polygon{coordinates: Shapes.monster_multi_out.coordinates |> hd, properties: %{area: 10}}
+      new_poly = Util.add_area(poly)
+      assert new_poly.properties.area == 161.89243343361437
     end
   end
 end

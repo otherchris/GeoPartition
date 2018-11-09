@@ -27,6 +27,13 @@ defmodule GeoPartition.Util do
     |> Kernel./(2)
   end
 
+  def add_area(shape = %{__struct__: Geo.Polygon, properties: props}) do
+    new_props = props
+    |> Map.put(:area, area(shape))
+    shape
+    |> Map.put(:properties, new_props)
+  end
+
   defp det_seg([{a, b}, {c, d}]) do
     (b * c) - (a * d)
   end
@@ -80,6 +87,12 @@ defmodule GeoPartition.Util do
 
   def polys_to_multi(list) when is_list(list) do
     %Geo.MultiPolygon{coordinates: Enum.map(list, &(&1.coordinates))}
+    |> IO.inspect
+  end
+
+  def multi_to_polys(shape = %{__struct__: Geo.MultiPolygon}) do
+    shape.coordinates
+    |> Enum.map(&(%Geo.Polygon{coordinates: &1}))
   end
 
   def contains(poly = %{__struct__: Geo.Polygon}, line = %{__struct__: Geo.LineString}) do

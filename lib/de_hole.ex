@@ -86,7 +86,7 @@ defmodule GeoPartition.DeHole do
     tl(list) ++ [hd(list)]
   end
 
-  defp rotate_poly_ring(list) do
+  def rotate_poly_ring(list) do
     tl(list) ++ [Enum.at(list, 1)]
   end
 
