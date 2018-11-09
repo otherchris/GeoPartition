@@ -87,7 +87,6 @@ defmodule GeoPartition.Util do
 
   def polys_to_multi(list) when is_list(list) do
     %Geo.MultiPolygon{coordinates: Enum.map(list, &(&1.coordinates))}
-    |> IO.inspect
   end
 
   def multi_to_polys(shape = %{__struct__: Geo.MultiPolygon}) do

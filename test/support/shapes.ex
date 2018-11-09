@@ -233,4 +233,68 @@ defmodule GeoPartition.Shapes do
     }
   end
 
+  def ref_line do
+    %Geo.LineString{
+      properties: %{},
+      srid: nil,
+      coordinates: [
+        {-89.37583923339844, 37.27459920466868},
+        {-89.37583923339844, 37.24180850465067}
+      ]
+    }
+  end
+
+  def disjoint_line do
+    %Geo.LineString{
+      coordinates: [
+        {-89.3631362915039, 37.262577605443454},
+        {-89.34288024902344, 37.249187656673975}
+      ],
+      properties: %{},
+      srid: nil
+    }
+  end
+
+  def overlap_line do
+    %Geo.LineString{
+      coordinates: [
+        {-89.37583923339844, 37.25383341872526},
+        {-89.37583923339844, 37.224314295273366}
+      ],
+      properties: %{},
+      srid: nil
+    }
+  end
+
+  def incident_line do
+    %Geo.LineString{
+      coordinates: [
+        {-89.37583923339844, 37.25820563896855},
+        {-89.36107635498047, 37.25847889430797}
+      ],
+      properties: %{},
+      srid: nil
+    }
+  end
+
+  def intersect_line do
+    %Geo.LineString{
+      coordinates: [
+        {-89.3906021118164, 37.26203112351243},
+        {-89.36347961425781, 37.25410668992488}
+      ],
+      properties: %{},
+      srid: nil
+    }
+  end
+
+  def intersect_point do
+    %Geo.Point{
+      coordinates: [
+        {-89.37583923339844, 37.25771782421794}
+      ],
+      properties: %{},
+      srid: nil
+    }
+  end
 end

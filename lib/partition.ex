@@ -8,7 +8,6 @@ defmodule GeoPartition.Partition do
   end
 
   def add_split(ring, target) do
-    IO.inspect target
     dups = get_dups(ring)
     {opposite, _} = ring
                     |> length
@@ -19,7 +18,6 @@ defmodule GeoPartition.Partition do
     target_vertex = Enum.at(ring, target)
                     # exhausted source?
     if abs(target) >= opposite do
-      IO.inspect "ROTATE"
       add_split(GeoPartition.DeHole.rotate_poly_ring(ring), 0)
     else
       line = %Geo.LineString{coordinates: [hd(ring), Enum.at(ring, opposite + target)]}
@@ -27,7 +25,6 @@ defmodule GeoPartition.Partition do
       poly1 = %Geo.Polygon{coordinates: [Enum.slice(ring, 0..(opposite + target)) ++ [hd(ring)]]}
       poly2 = %Geo.Polygon{coordinates: [[hd(ring)] ++ Enum.slice(ring, (opposite + target)..-1) ++ [hd(ring)]]}
       if Util.contains(poly, line) && !Enum.member?(dups, target_vertex) && !Enum.member?(dups, opposite_vertex) do
-        IO.inspect {opposite_vertex, target_vertex}
         [
           %Geo.Polygon{coordinates: [Enum.slice(ring, 0..(opposite + target)) ++ [hd(ring)]]},
           %Geo.Polygon{coordinates: [[hd(ring)] ++ Enum.slice(ring, (opposite + target)..-1) ++ [hd(ring)]]}
@@ -39,7 +36,7 @@ defmodule GeoPartition.Partition do
   end
 
   defp split_check(polys = [poly1, poly2, ref]) do
-    [p1, p2, r] = Enum.map(polys, &Util.area(&1)) |> IO.inspect
+    [p1, p2, r] = Enum.map(polys, &Util.area(&1))
     is_close(p1 + p2, r)
   end
 
@@ -61,6 +58,5 @@ defmodule GeoPartition.Partition do
       |> Enum.find(&(&1 == x))
     end)
     |> Enum.reject(&is_nil(&1))
-    |> IO.inspect
   end
 end
