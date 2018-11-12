@@ -97,4 +97,8 @@ defmodule GeoPartition.Util do
   def contains(poly = %{__struct__: Geo.Polygon}, line = %{__struct__: Geo.LineString}) do
     Topo.contains?(poly, line)
   end
+
+  def rotate_list(list) do
+    tl(list) ++ [hd(list)]
+  end
 end
