@@ -77,29 +77,29 @@ defmodule GeoPartition.GraphTest do
           %Geo.Point{
             coordinates: {-84.20059204101562, 36.88566207736627},
             properties: %{
-              ring: :outer,
-              covered: false
+              ring: :inner,
+              covered: true
             }
           },
           %Geo.Point{
             coordinates: {-84.18514251708984, 36.88566207736627},
             properties: %{
-              ring: :outer,
-              covered: false
+              ring: :inner,
+              covered: true
             }
           },
           %Geo.Point{
             coordinates: {-84.18514251708984, 36.90186184771291},
             properties: %{
-              ring: :outer,
-              covered: false
+              ring: :inner,
+              covered: true
             }
           },
           %Geo.Point{
             coordinates: {-84.20059204101562, 36.90186184771291},
             properties: %{
-              ring: :outer,
-              covered: false
+              ring: :inner,
+              covered: true
             }
           }
         ],
