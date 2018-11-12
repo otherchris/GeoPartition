@@ -108,6 +108,84 @@ defmodule GeoPartition.GraphTest do
     end
   end
 
+  test "corner hole" do
+    graph = Graph.from_polygon(Shapes.rect_with_corner_hole)
+    assert graph == %Graph{
+      vertices: [
+        %Geo.Point{
+          coordinates: {-84.28848266601563, 36.80268739459133},
+          properties: %{
+            ring: :outer,
+            covered: false
+          }
+        },
+        %Geo.Point{
+          coordinates: {-84.06463623046875, 36.80268739459133},
+          properties: %{
+            ring: :outer,
+            covered: false
+          }
+        },
+        %Geo.Point{
+          coordinates: {-84.06463623046875, 36.9795180188502},
+          properties: %{
+            ring: :outer,
+            covered: true
+          }
+        },
+        %Geo.Point{
+          coordinates: {-84.28848266601563, 36.9795180188502},
+          properties: %{
+            ring: :outer,
+            covered: false
+          }
+        },
+        %Geo.Point{
+          coordinates: {-84.11338806152344, 36.93946500056987},
+          properties: %{
+            ring: :inner,
+            covered: true
+          }
+        },
+        %Geo.Point{
+          coordinates: {-84.01107788085938, 36.93946500056987},
+          properties: %{
+            ring: :inner,
+            covered: false
+          }
+        },
+        %Geo.Point{
+          coordinates: {-84.01107788085938, 37.008584404683155},
+          properties: %{
+            ring: :inner,
+            covered: false
+          }
+        },
+        %Geo.Point{
+          coordinates: {-84.11338806152344, 37.008584404683155},
+          properties: %{
+            ring: :inner,
+            covered: false
+          }
+        },
+        %Geo.Point{
+          coordinates: [{-84.11338806152344, 36.9795180188502}],
+          properties: %{
+            ring: :intersection,
+            covered: false
+          }
+        },
+        %Geo.Point{
+          coordinates: [{-84.06463623046875, 36.9394650005698}],
+          properties: %{
+            ring: :intersection,
+            covered: false
+          }
+        }
+      ],
+      edges: [[8], [2], [3], [0], [5], [6], [7], [4], [1, 2, 4, 7], [2, 3, ]]
+    }
+  end
   describe "get subgraphs" do
     #get_incident_edges
     #

@@ -21,10 +21,10 @@ defmodule GeoPartition.Util do
     |> Enum.chunk_every(2, 1, :discard)
     |> Enum.map(&det_seg(&1))
     |> List.foldr(0, &Kernel.+(&1, &2))
+    |> Kernel./(2)
     |> abs
     |> Kernel.*(get_long_factor(shape.coordinates))
     |> Kernel.*(69.172)
-    |> Kernel./(2)
   end
 
   def add_area(shape = %{__struct__: Geo.Polygon, properties: props}) do
