@@ -26,4 +26,49 @@ defmodule GeoPartition.Area do
         }}
     end
   end
+
+  @doc """
+  Return an outer ring with no overlapping polys
+
+  If a hole is contained, no change
+  If a hole overlaps, use the inside/outside strategy
+  """
+  def chop_hole(outer, hole) do
+    if Topo.contains?(
+      %Geo.Polygon{coordinates: [outer]},
+      %Geo.Polygon{coordinates: [hole]}
+    ) do
+      outer
+    else
+      outer_edges = Enum.chunk_every(outer, 2, 1, :discard) |> Enum.map(&(%Geo.LineString{coordinates: &1}))
+      hole_edges = Enum.chunk_every(hole, 2, 1, :discard) |> Enum.map(&(%Geo.LineString{coordinates: &1}))
+      intersections = get_intersections(outer_edges, hole_edges)
+    end
+  end
+
+  def get_intersections(a, b)do
+    Enum.map(a, fn(x) ->
+      Enum.map(b, fn(y) ->
+        case intersection(x, y) do
+          {:intersects, point} -> [{a, point}, {b, point}]
+          _ -> nil
+        end
+      end)
+    end)
+    |> List.flatten
+    |> Enum.uniq
+    |> Enum.reject(&is_nil(&1))
+  end
+
+  def sort_segment(points) do
+    Enum.sort_by(points, &dist_compare(hd(points), &1, &2))
+  end
+
+  def dist(a = {x1, y1}, b = {x2, y2}) do
+    :math.sqrt(:math.pow((x1 - x2), 2) + :math.pow((y1 - y2), 2))
+  end
+
+  def dist_compare(near, a, b) do
+    dist(near, a) <= dist(near, b)
+  end
 end
