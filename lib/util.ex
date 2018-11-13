@@ -1,40 +1,15 @@
 defmodule GeoPartition.Util do
 
-  def get_long_factor(poly = %{__struct__: Geo.MultiPolygon}) do
-    poly.coordinates
-    |> get_long_factor
-  end
-
-  def get_long_factor(coords) when is_list(coords) do
-    coords
-    |> get_all_coords
-    |> Enum.map(fn({a, b}) -> b end)
-    |> geo_mean
-    |> deg_to_rad
-    |> :math.cos
-    |> Kernel.*(69.172)
-  end
-
-  def area(shape = %{__struct__: Geo.Polygon}) do
-    shape.coordinates
-    |> get_all_coords
-    |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.map(&det_seg(&1))
-    |> List.foldr(0, &Kernel.+(&1, &2))
-    |> Kernel./(2)
-    |> abs
-    |> Kernel.*(get_long_factor(shape.coordinates))
-    |> Kernel.*(69.172)
-  end
+  alias GeoPartition.Geometry
 
   def add_area(shape = %{__struct__: Geo.Polygon, properties: props}) do
     new_props = props
-    |> Map.put(:area, area(shape))
+    |> Map.put(:area, Geometry.area(shape))
     shape
     |> Map.put(:properties, new_props)
   end
 
-  defp det_seg([{a, b}, {c, d}]) do
+  def det_seg([{a, b}, {c, d}]) do
     (b * c) - (a * d)
   end
 
@@ -52,7 +27,7 @@ defmodule GeoPartition.Util do
     ( List.first(list) + List.last(list) ) / 2
   end
 
-  defp deg_to_rad(deg) do
+  def deg_to_rad(deg) do
     deg * 2 * :math.pi / 360
   end
 

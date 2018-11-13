@@ -36,7 +36,7 @@ defmodule GeoPartition.Partition do
   end
 
   defp split_check(polys = [poly1, poly2, ref]) do
-    [p1, p2, r] = Enum.map(polys, &Util.area(&1))
+    [p1, p2, r] = Enum.map(polys, &Geometry.area(&1))
     is_close(p1 + p2, r)
   end
 

@@ -3,6 +3,8 @@ defmodule GeoPartition.Geometry do
   Functions for calculating area of polygons
   """
 
+  alias GeoPartition.Util
+
   # "soft" contains for finding a point on a line
   def contains?(a = %Geo.LineString{}, b = %Geo.Point{coordinates: {x, y}}) do
     smudge = %Geo.Polygon{
@@ -43,4 +45,30 @@ defmodule GeoPartition.Geometry do
     end
   end
 
+  def get_long_factor(poly = %{__struct__: Geo.MultiPolygon}) do
+    poly.coordinates
+    |> get_long_factor
+  end
+
+  def get_long_factor(coords) when is_list(coords) do
+    coords
+    |> Util.get_all_coords
+    |> Enum.map(fn({a, b}) -> b end)
+    |> Util.geo_mean
+    |> Util.deg_to_rad
+    |> :math.cos
+    |> Kernel.*(69.172)
+  end
+
+  def area(shape = %{__struct__: Geo.Polygon}) do
+    shape.coordinates
+    |> Util.get_all_coords
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.map(&Util.det_seg(&1))
+    |> List.foldr(0, &Kernel.+(&1, &2))
+    |> Kernel./(2)
+    |> abs
+    |> Kernel.*(get_long_factor(shape.coordinates))
+    |> Kernel.*(69.172)
+  end
 end

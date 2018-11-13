@@ -103,15 +103,6 @@ defmodule GeoPartition.UtilTest do
     end
   end
 
-  describe "get long factor" do
-    test "get long lactor" do
-      assert GeoPartition.Util.get_long_factor([
-        { -106.08879089355467, 40.333983227838104 },
-        { -106.19590759277344, 39.333983227838104 }
-      ]) == 53.11743661200859
-    end
-  end
-
   describe "polygon_errors" do
     test "yes it overlaps" do
       result = @overlaps
@@ -150,22 +141,4 @@ defmodule GeoPartition.UtilTest do
     end
   end
 
-  describe "calculate area of a polygon" do
-    test "find area" do
-      poly = %Geo.Polygon{coordinates: Shapes.monster_multi_out.coordinates |> hd}
-      assert Util.area(poly) == 161.89243343361437
-    end
-
-    test "add area to props" do
-      poly = %Geo.Polygon{coordinates: Shapes.monster_multi_out.coordinates |> hd}
-      new_poly = Util.add_area(poly)
-      assert new_poly.properties.area == 161.89243343361437
-    end
-
-    test "change existing area" do
-      poly = %Geo.Polygon{coordinates: Shapes.monster_multi_out.coordinates |> hd, properties: %{area: 10}}
-      new_poly = Util.add_area(poly)
-      assert new_poly.properties.area == 161.89243343361437
-    end
-  end
 end
