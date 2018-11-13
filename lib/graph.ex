@@ -3,7 +3,7 @@ defmodule GeoPartition.Graph do
   Graph representation of a polygon
   """
 
-  alias GeoPartition.{Area, Util}
+  alias GeoPartition.{Geometry, Util}
 
   defstruct [
     vertices: [],
@@ -91,7 +91,7 @@ defmodule GeoPartition.Graph do
       length(segs) <= 1 -> {v, e}
       others == [] -> add_intersections(tl(segs), tl(tl(segs)), {v, e})
       true ->
-        case Area.intersection(hd(segs), hd(others)) do
+        case Geometry.intersection(hd(segs), hd(others)) do
           {:intersects, point} ->
             add_intersections(segs, tl(others), subdivide({v, e}, point))
           _ -> add_intersections(segs, tl(others), {v, e})
@@ -103,7 +103,7 @@ defmodule GeoPartition.Graph do
     props = Map.put(point.properties, :ring, :intersection)
             |> Map.put(:covered, false)
     vertices = vertices ++ [c = Map.put(point, :properties, props)]
-    intersected_edges = Enum.filter(edges, &Area.contains?(edge_to_seg(&1), c))
+    intersected_edges = Enum.filter(edges, &Geometry.contains?(edge_to_seg(&1), c))
     edges = new_edges(intersected_edges, c)
             |> Kernel.++(edges)
             |> Enum.reject(&(Enum.member?(intersected_edges, &1)))
