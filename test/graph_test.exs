@@ -309,6 +309,12 @@ defmodule GeoPartition.GraphTest do
       assert MapSet.new(graph.vertices) == MapSet.new(vertices)
       assert MapSet.new(graph.edges) == MapSet.new(edges)
     end
+
+    test "diamonds" do
+      graph = Graph.from_polygon(Shapes.intersecting_diamonds)
+      assert length(graph.vertices) == 10
+      assert length(graph.edges) == 12
+    end
   end
 
   describe "get subgraphs" do

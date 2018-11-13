@@ -3,6 +3,22 @@ defmodule GeoPartition.Area do
   Functions for calculating area of polygons
   """
 
+  # "soft" contains for finding a point on a line
+  def contains?(a = %Geo.LineString{}, b = %Geo.Point{coordinates: {x, y}}) do
+    smudge = %Geo.Polygon{
+      coordinates: [
+        [
+          {x + 0.000001, y},
+          {x, y + 0.000001},
+          {x - 0.000001, y},
+          {x, y - 0.000001},
+          {x + 0.000001, y}
+        ]
+      ]
+    }
+    Topo.intersects?(a, smudge)
+  end
+
   def intersects?(a = %{__struct__: Geo.LineString}, b = %{__struct__: Geo.LineString}) do
     Topo.intersects?(a, b)
     && !Topo.contains?(b, a)
