@@ -21,7 +21,22 @@ defmodule GeoPartition.Graph do
   end
 
   def add_coverage({v, e}, coords = [outer|holes]) do
-    vertices = Enum.map(v, fn(x = %{properties: %{ring: ring_type}}) ->
+    vertices = add_coverage(v, coords)
+    edges = add_coverage(e, coords)
+    {vertices, edges}
+  end
+
+  def add_coverage(e = [%MapSet{}|_], coords) do
+    e
+    |> Enum.map(&MapSet.to_list(&1))
+    |> List.flatten
+    |> add_coverage(coords)
+    |> Enum.chunk_every(2, 2, :discard)
+    |> Enum.map(&MapSet.new(&1))
+  end
+
+  def add_coverage(v, coords = [outer|holes]) when is_list(v) do
+    Enum.map(v, fn(x = %{properties: %{ring: ring_type}}) ->
       if ring_type == :inner do
         props = Map.put(x.properties, :covered, covered?(outer, x))
         Map.put(x, :properties, props)
@@ -30,7 +45,6 @@ defmodule GeoPartition.Graph do
         Map.put(x, :properties, props)
       end
     end)
-    {vertices, e}
   end
 
   defp covered?(rings = [[_|_]], point = %{__struct__: Geo.Point}) do
