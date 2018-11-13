@@ -3,11 +3,39 @@ defmodule GeoPartition.GraphTest do
 
   alias GeoPartition.{Graph, Shapes}
 
-  describe "create graph from polygon" do
-
-    test "no holes" do
-      graph = Graph.from_polygon(Shapes.simple_rect)
-      vertices = [
+  setup do
+    vertices =  [
+      %Geo.Point{
+        coordinates: {-84.28848266601563, 36.80268739459133},
+        properties: %{
+          ring: :outer,
+          covered: false
+        }
+      },
+      %Geo.Point{
+        coordinates: {-84.06463623046875, 36.80268739459133},
+        properties: %{
+          ring: :outer,
+          covered: false
+        }
+      },
+      %Geo.Point{
+        coordinates: {-84.06463623046875, 36.9795180188502},
+        properties: %{
+          ring: :outer,
+          covered: false
+        }
+      },
+      %Geo.Point{
+        coordinates: {-84.28848266601563, 36.9795180188502},
+        properties: %{
+          ring: :outer,
+          covered: false
+        }
+      }
+    ]
+    corner_vertices = [
+        #A
         %Geo.Point{
           coordinates: {-84.28848266601563, 36.80268739459133},
           properties: %{
@@ -15,6 +43,7 @@ defmodule GeoPartition.GraphTest do
             covered: false
           }
         },
+        #B
         %Geo.Point{
           coordinates: {-84.06463623046875, 36.80268739459133},
           properties: %{
@@ -22,62 +51,122 @@ defmodule GeoPartition.GraphTest do
             covered: false
           }
         },
+        #C
         %Geo.Point{
           coordinates: {-84.06463623046875, 36.9795180188502},
+          properties: %{
+            ring: :outer,
+            covered: true
+          }
+        },
+        #D
+        %Geo.Point{
+          coordinates: {-84.28848266601563, 36.9795180188502},
           properties: %{
             ring: :outer,
             covered: false
           }
         },
+        #E
         %Geo.Point{
-          coordinates: {-84.28848266601563, 36.9795180188502},
+          coordinates: {-84.11338806152344, 36.93946500056987},
           properties: %{
-            ring: :outer,
+            ring: :inner,
+            covered: true
+          }
+        },
+        #F
+        %Geo.Point{
+          coordinates: {-84.01107788085938, 36.93946500056987},
+          properties: %{
+            ring: :inner,
+            covered: false
+          }
+        },
+        #G
+        %Geo.Point{
+          coordinates: {-84.01107788085938, 37.008584404683155},
+          properties: %{
+            ring: :inner,
+            covered: false
+          }
+        },
+        #H
+        %Geo.Point{
+          coordinates: {-84.11338806152344, 37.008584404683155},
+          properties: %{
+            ring: :inner,
             covered: false
           }
         }
       ]
-      edges = [
+    %{
+      simple_vertices: vertices,
+      corner_vertices: corner_vertices,
+      simple_edges: [
         MapSet.new([Enum.at(vertices, 0), Enum.at(vertices, 1)]),
         MapSet.new([Enum.at(vertices, 1), Enum.at(vertices, 2)]),
         MapSet.new([Enum.at(vertices, 2), Enum.at(vertices, 3)]),
         MapSet.new([Enum.at(vertices, 3), Enum.at(vertices, 0)]),
+      ],
+      corner_edges: [
+        MapSet.new([Enum.at(corner_vertices, 0), Enum.at(corner_vertices, 1)]),
+        MapSet.new([Enum.at(corner_vertices, 1), Enum.at(corner_vertices, 2)]),
+        MapSet.new([Enum.at(corner_vertices, 2), Enum.at(corner_vertices, 3)]),
+        MapSet.new([Enum.at(corner_vertices, 3), Enum.at(corner_vertices, 0)]),
+        MapSet.new([Enum.at(corner_vertices, 4), Enum.at(corner_vertices, 5)]),
+        MapSet.new([Enum.at(corner_vertices, 5), Enum.at(corner_vertices, 6)]),
+        MapSet.new([Enum.at(corner_vertices, 6), Enum.at(corner_vertices, 7)]),
+        MapSet.new([Enum.at(corner_vertices, 7), Enum.at(corner_vertices, 4)]),
       ]
+    }
+  end
+
+  describe "helpers" do
+
+    test "subdividesimple", %{
+      simple_vertices: vertices,
+      simple_edges: edges,
+    } do
+      point = %Geo.Point{
+        coordinates: {-84.06463623046875, 36.93946500056987},
+        properties: %{
+          ring: :intersection,
+          covered: false
+        }
+      }
+      {v, e} = Graph.subdivide({vertices, edges}, point)
+      assert length(v) == 5
+      assert length(e) == 5
+    end
+
+    test "subdividehard", %{
+      corner_vertices: corner_vertices,
+      corner_edges: corner_edges
+    } do
+      point = %Geo.Point{
+        coordinates: {-84.06463623046875, 36.93946500056987},
+        properties: %{
+          ring: :intersection,
+          covered: false
+        }
+      }
+      {v1, e1} = Graph.subdivide({corner_vertices, corner_edges}, point)
+      assert length(v1) == 9
+      assert length(e1) == 10
+    end
+  end
+
+  describe "create graph from polygon" do
+    test "no holes", %{simple_vertices: vertices, simple_edges: edges} do
+      graph = Graph.from_polygon(Shapes.simple_rect)
       assert MapSet.new(graph.vertices) == MapSet.new(vertices)
       assert MapSet.new(graph.edges) == MapSet.new(edges)
     end
 
-    test "simple hole" do
+    test "simple hole", %{simple_vertices: vertices, simple_edges: edges} do
       graph = Graph.from_polygon(Shapes.rect_with_hole)
-      vertices = [
-        %Geo.Point{
-          coordinates: {-84.28848266601563, 36.80268739459133},
-          properties: %{
-            ring: :outer,
-            covered: false
-          }
-        },
-        %Geo.Point{
-          coordinates: {-84.06463623046875, 36.80268739459133},
-          properties: %{
-            ring: :outer,
-            covered: false
-          }
-        },
-        %Geo.Point{
-          coordinates: {-84.06463623046875, 36.9795180188502},
-          properties: %{
-            ring: :outer,
-            covered: false
-          }
-        },
-        %Geo.Point{
-          coordinates: {-84.28848266601563, 36.9795180188502},
-          properties: %{
-            ring: :outer,
-            covered: false
-          }
-        },
+      vertices = vertices ++ [
         %Geo.Point{
           coordinates: {-84.20059204101562, 36.88566207736627},
           properties: %{
@@ -107,11 +196,7 @@ defmodule GeoPartition.GraphTest do
           }
         }
       ]
-      edges = [
-        MapSet.new([Enum.at(vertices, 0), Enum.at(vertices, 1)]),
-        MapSet.new([Enum.at(vertices, 1), Enum.at(vertices, 2)]),
-        MapSet.new([Enum.at(vertices, 2), Enum.at(vertices, 3)]),
-        MapSet.new([Enum.at(vertices, 3), Enum.at(vertices, 0)]),
+      edges = edges ++ [
         MapSet.new([Enum.at(vertices, 4), Enum.at(vertices, 5)]),
         MapSet.new([Enum.at(vertices, 5), Enum.at(vertices, 6)]),
         MapSet.new([Enum.at(vertices, 6), Enum.at(vertices, 7)]),
@@ -120,97 +205,112 @@ defmodule GeoPartition.GraphTest do
       assert MapSet.new(graph.vertices) == MapSet.new(vertices)
       assert MapSet.new(graph.edges) == MapSet.new(edges)
     end
-  end
 
-  @tag :skip
-  test "corner hole" do
-    graph = Graph.from_polygon(Shapes.rect_with_corner_hole)
-    assert graph == %Graph{
-      vertices: [
+    test "corner hole" do
+      graph = Graph.from_polygon(Shapes.rect_with_corner_hole)
+      vertices = [
+        #A
         %Geo.Point{
           coordinates: {-84.28848266601563, 36.80268739459133},
           properties: %{
             ring: :outer,
-            covered: false,
-            label: "001"
+            covered: false
           }
         },
+        #B
         %Geo.Point{
           coordinates: {-84.06463623046875, 36.80268739459133},
           properties: %{
             ring: :outer,
-            covered: false,
-            label: "002"
+            covered: false
           }
         },
+        #C
         %Geo.Point{
           coordinates: {-84.06463623046875, 36.9795180188502},
           properties: %{
             ring: :outer,
-            covered: true,
-            label: "003"
+            covered: true
           }
         },
+        #D
         %Geo.Point{
           coordinates: {-84.28848266601563, 36.9795180188502},
           properties: %{
             ring: :outer,
-            covered: false,
-            label: "004"
+            covered: false
           }
         },
+        #E
         %Geo.Point{
           coordinates: {-84.11338806152344, 36.93946500056987},
           properties: %{
             ring: :inner,
-            covered: true,
-            label: "005"
+            covered: true
           }
         },
+        #F
         %Geo.Point{
           coordinates: {-84.01107788085938, 36.93946500056987},
           properties: %{
             ring: :inner,
-            covered: false,
-            label: "006"
+            covered: false
           }
         },
+        #G
         %Geo.Point{
           coordinates: {-84.01107788085938, 37.008584404683155},
           properties: %{
             ring: :inner,
-            covered: false,
-            label: "007"
+            covered: false
           }
         },
+        #H
         %Geo.Point{
           coordinates: {-84.11338806152344, 37.008584404683155},
           properties: %{
             ring: :inner,
-            covered: false,
-            label: "008"
+            covered: false
           }
         },
+        #I
         %Geo.Point{
-          coordinates: [{-84.11338806152344, 36.9795180188502}],
+          coordinates: {-84.11338806152344, 36.9795180188502},
           properties: %{
             ring: :intersection,
-            covered: false,
-            label: "009"
+            covered: false
           }
         },
+        #J
         %Geo.Point{
-          coordinates: [{-84.06463623046875, 36.9394650005698}],
+          coordinates: {-84.06463623046875, 36.93946500056987},
           properties: %{
             ring: :intersection,
-            covered: false,
-            label: "010"
+            covered: false
           }
         }
-      ],
-      edges: [[8], [2], [3], [0], [5], [6], [7], [4], [1, 2, 4, 7], [2, 3, ]]
-    }
+      ]
+      edges = [
+        MapSet.new([Enum.at(vertices, 0), Enum.at(vertices, 1)]),
+        MapSet.new([Enum.at(vertices, 3), Enum.at(vertices, 0)]),
+        MapSet.new([Enum.at(vertices, 5), Enum.at(vertices, 6)]),
+        MapSet.new([Enum.at(vertices, 6), Enum.at(vertices, 7)]),
+        MapSet.new([Enum.at(vertices, 3), Enum.at(vertices, 8)]),
+        MapSet.new([Enum.at(vertices, 2), Enum.at(vertices, 8)]),
+        MapSet.new([Enum.at(vertices, 7), Enum.at(vertices, 8)]),
+        MapSet.new([Enum.at(vertices, 4), Enum.at(vertices, 8)]),
+        MapSet.new([Enum.at(vertices, 4), Enum.at(vertices, 9)]),
+        MapSet.new([Enum.at(vertices, 2), Enum.at(vertices, 9)]),
+        MapSet.new([Enum.at(vertices, 5), Enum.at(vertices, 9)]),
+        MapSet.new([Enum.at(vertices, 1), Enum.at(vertices, 9)]),
+      ]
+      assert length(graph.vertices) == 10
+      assert length(graph.edges) == 12
+      assert MapSet.new(graph.vertices) == MapSet.new(vertices)
+      assert MapSet.new(graph.edges) == MapSet.new(edges)
+    end
   end
+
   describe "get subgraphs" do
     #get_incident_edges
     #

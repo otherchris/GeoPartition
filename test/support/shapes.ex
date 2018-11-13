@@ -313,9 +313,7 @@ defmodule GeoPartition.Shapes do
 
   def intersect_point do
     %Geo.Point{
-      coordinates: [
-        {-89.37583923339844, 37.25771782421794}
-      ],
+      coordinates: {-89.37583923339844, 37.25771782421794},
       properties: %{},
       srid: nil
     }

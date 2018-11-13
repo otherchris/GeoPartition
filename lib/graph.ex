@@ -3,7 +3,7 @@ defmodule GeoPartition.Graph do
   Graph representation of a polygon
   """
 
-  alias GeoPartition.Util
+  alias GeoPartition.{Area, Util}
 
   defstruct [
     vertices: [],
@@ -14,6 +14,7 @@ defmodule GeoPartition.Graph do
     {v, e} = add_ring_to_graph({[], []}, outer, :outer)
     {vertices, edges}  = List.foldl(holes, {v, e}, &add_ring_to_graph(&2, &1, :inner))
                          |> add_coverage(coords)
+                         |> add_intersections
     %GeoPartition.Graph{
       vertices: vertices,
       edges: edges
@@ -76,5 +77,55 @@ defmodule GeoPartition.Graph do
             |> Enum.chunk_every(2, 1, :discard)
             |> Enum.map(&MapSet.new(&1))
     {v ++ Enum.slice(vertices, 0..-2), e ++ edges}
+  end
+
+  defp add_intersections({v, e}) do
+    segs = e
+           |> Enum.map(&MapSet.to_list/1)
+           |> Enum.map(&points_to_seg(&1))
+    add_intersections(segs, tl(segs), {v, e})
+  end
+
+  defp add_intersections(segs, others, {v, e}) when is_list(segs) do
+    cond do
+      length(segs) <= 1 -> {v, e}
+      others == [] -> add_intersections(tl(segs), tl(tl(segs)), {v, e})
+      true ->
+        case Area.intersection(hd(segs), hd(others)) do
+          {:intersects, point} ->
+            add_intersections(segs, tl(others), subdivide({v, e}, point))
+          _ -> add_intersections(segs, tl(others), {v, e})
+        end
+    end
+  end
+
+  def subdivide({vertices, edges}, point) do
+    props = Map.put(point.properties, :ring, :intersection)
+            |> Map.put(:covered, false)
+    vertices = vertices ++ [c = Map.put(point, :properties, props)]
+    intersected_edges = Enum.filter(edges, &Topo.contains?(edge_to_seg(&1), c))
+    edges = new_edges(intersected_edges, c)
+            |> Kernel.++(edges)
+            |> Enum.reject(&(Enum.member?(intersected_edges, &1)))
+    {vertices, edges}
+  end
+
+  defp new_edges(intersected_edges, point) do
+    inters = Enum.map(intersected_edges, &MapSet.to_list(&1))
+             |> List.flatten
+             |> Enum.map(&MapSet.new([&1, point]))
+  end
+
+  defp points_to_seg([a, b]) do
+    %Geo.LineString{
+      coordinates: [
+        a.coordinates,
+        b.coordinates
+      ]
+    }
+  end
+
+  defp edge_to_seg(e) do
+    e |> MapSet.to_list |> points_to_seg
   end
 end
