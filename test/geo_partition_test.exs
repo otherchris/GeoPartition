@@ -146,6 +146,7 @@ defmodule GeoPartitionTest do
   """
 
   describe "partition" do
+    @tag :skip
     test "whole list string" do
       assert GeoPartition.partition(@string) == ["good", "good"]
     end

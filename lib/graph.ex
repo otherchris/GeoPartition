@@ -56,14 +56,11 @@ defmodule GeoPartition.Graph do
         }
       }
     end)
-    |> Enum.slice(0..-2)
 
     offset = length(e)
-    edges = Enum.to_list(offset..length(vertices) + offset - 1)
-    |> List.foldr([], &(&2 ++ [[&1]]))
-    |> Enum.reverse
-    |> Util.rotate_list
-
-    {v ++ vertices, e ++ edges}
+    edges = vertices
+            |> Enum.chunk_every(2, 1, :discard)
+            |> Enum.map(&MapSet.new(&1))
+    {v ++ Enum.slice(vertices, 0..-2), e ++ edges}
   end
 end
