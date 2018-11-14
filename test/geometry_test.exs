@@ -4,21 +4,21 @@ defmodule GeoPartition.GeometryTest do
 
   alias GeoPartition.{Geometry, Shapes, Util}
 
-  describe "intersects? finds non-trivially intersecting segments" do
+  describe "crosses? finds non-trivially intersecting segments" do
     test "intersects" do
-      assert Geometry.intersects?(Shapes.ref_line, Shapes.intersect_line) == true
+      assert Geometry.crosses?(Shapes.ref_line, Shapes.intersect_line) == true
     end
 
     test "disjoint" do
-      assert Geometry.intersects?(Shapes.ref_line, Shapes.disjoint_line) == false
+      assert Geometry.crosses?(Shapes.ref_line, Shapes.disjoint_line) == false
     end
 
     test "overlap" do
-      assert Geometry.intersects?(Shapes.ref_line, Shapes.overlap_line) == false
+      assert Geometry.crosses?(Shapes.ref_line, Shapes.overlap_line) == false
     end
 
     test "incident" do
-      assert Geometry.intersects?(Shapes.ref_line, Shapes.incident_line) == false
+      assert Geometry.crosses?(Shapes.ref_line, Shapes.incident_line) == false
     end
   end
 
@@ -34,15 +34,6 @@ defmodule GeoPartition.GeometryTest do
     test "degen" do
       assert Geometry.intersection(Shapes.ref_line, Shapes.overlap_line) == {:degen, "degen"}
       assert Geometry.intersection(Shapes.ref_line, Shapes.incident_line) == {:degen, "degen"}
-    end
-  end
-
-  describe "get long factor" do
-    test "get long lactor" do
-      assert GeoPartition.Geometry.get_long_factor([
-        { -106.08879089355467, 40.333983227838104 },
-        { -106.19590759277344, 39.333983227838104 }
-      ]) == 53.11743661200859
     end
   end
 
