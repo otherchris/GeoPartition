@@ -5,16 +5,32 @@ defmodule GeoPartition.Geometry do
 
   alias GeoPartition.Util
 
-  # "soft" contains for finding a point on a line
-  def contains?(a = %Geo.LineString{}, b = %Geo.Point{coordinates: {x, y}}) do
+  @doc """
+  Determines if a Point is _very nearly_ on a LineString. Creates a polar rectangle
+  with diagonal of 2 * epsilon (default value is less than an inch). If this rectangle
+  intersects the LineString, we say the Point is "on" the LineString.
+
+  ## Examples
+
+    iex> line = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 1.0}]}
+    iex> point = %Geo.Point{coordinates: {1.5, 1.0000001}}
+    iex> GeoPartition.Geometry.soft_contains?(line, point)
+    true
+
+    iex> line = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 1.0}]}
+    iex> point = %Geo.Point{coordinates: {1.5, 1.0000001}}
+    iex> GeoPartition.Geometry.soft_contains?(line, point, 0.00000001)
+    false
+  """
+  def soft_contains?(a = %Geo.LineString{}, b = %Geo.Point{coordinates: {x, y}}, epsilon \\ 0.0000001) do
     smudge = %Geo.Polygon{
       coordinates: [
         [
-          {x + 0.000001, y},
-          {x, y + 0.000001},
-          {x - 0.000001, y},
-          {x, y - 0.000001},
-          {x + 0.000001, y}
+          {x + epsilon, y},
+          {x, y + epsilon},
+          {x - epsilon, y},
+          {x, y - epsilon},
+          {x + epsilon, y}
         ]
       ]
     }

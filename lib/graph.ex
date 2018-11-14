@@ -103,7 +103,7 @@ defmodule GeoPartition.Graph do
     props = Map.put(point.properties, :ring, :intersection)
             |> Map.put(:covered, false)
     vertices = vertices ++ [c = Map.put(point, :properties, props)]
-    intersected_edges = Enum.filter(edges, &Geometry.contains?(edge_to_seg(&1), c))
+    intersected_edges = Enum.filter(edges, &Geometry.soft_contains?(edge_to_seg(&1), c))
     edges = new_edges(intersected_edges, c)
             |> Kernel.++(edges)
             |> Enum.reject(&(Enum.member?(intersected_edges, &1)))

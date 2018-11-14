@@ -1,5 +1,6 @@
 defmodule GeoPartition.GeometryTest do
   use ExUnit.Case
+  doctest GeoPartition.Geometry
 
   alias GeoPartition.{Geometry, Shapes, Util}
 
