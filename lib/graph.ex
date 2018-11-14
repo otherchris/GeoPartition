@@ -12,9 +12,9 @@ defmodule GeoPartition.Graph do
 
   def from_polygon(shape = %{__struct__: Geo.Polygon, coordinates: coords = [outer|holes]}) do
     {v, e} = add_ring_to_graph({[], []}, outer, :outer)
-    {vertices, edges}  = List.foldl(holes, {v, e}, &add_ring_to_graph(&2, &1, :inner))
-                         |> add_coverage(coords)
-                         |> add_intersections
+    {vertices, edges} = List.foldl(holes, {v, e}, &add_ring_to_graph(&2, &1, :inner))
+                        |> add_coverage(coords)
+                        |> add_intersections
     %GeoPartition.Graph{
       vertices: vertices,
       edges: edges
@@ -80,23 +80,15 @@ defmodule GeoPartition.Graph do
   end
 
   defp add_intersections({v, e}) do
-    segs = e
-           |> Enum.map(&MapSet.to_list/1)
-           |> Enum.map(&points_to_seg(&1))
-    add_intersections(segs, tl(segs), {v, e})
-  end
-
-  defp add_intersections(segs, others, {v, e}) when is_list(segs) do
-    cond do
-      length(segs) <= 1 -> {v, e}
-      others == [] -> add_intersections(tl(segs), tl(tl(segs)), {v, e})
-      true ->
-        case Geometry.intersection(hd(segs), hd(others)) do
-          {:intersects, point} ->
-            add_intersections(segs, tl(others), subdivide({v, e}, point))
-          _ -> add_intersections(segs, tl(others), {v, e})
-        end
+    for x <- e, y <- e do
+      case Geometry.intersection(edge_to_seg(x), edge_to_seg(y)) do
+        {:intersects, point} -> point
+        _ -> nil
+      end
     end
+    |> Enum.reject(&is_nil(&1))
+    |> Enum.uniq
+    |> List.foldr({v, e}, &subdivide(&2, &1))
   end
 
   def subdivide({vertices, edges}, point) do
@@ -127,5 +119,9 @@ defmodule GeoPartition.Graph do
 
   defp edge_to_seg(e) do
     e |> MapSet.to_list |> points_to_seg
+  end
+
+  def dehole({v, e}) do
+
   end
 end
