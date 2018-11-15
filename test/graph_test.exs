@@ -317,8 +317,23 @@ defmodule GeoPartition.GraphTest do
     end
   end
 
-  describe "get subgraphs" do
-    #get_incident_edges
-    #
+  describe "dehole" do
+    test "dehole" do
+      %{vertices: v, edges: e} = Graph.from_polygon(Shapes.rect_with_corner_hole)
+      IO.inspect Graph.dehole({v, e})
+    end
+
+    test "find path" do
+      set = [
+        MapSet.new([1, 2]),
+        MapSet.new([2, 3]),
+        MapSet.new([3, 4]),
+        MapSet.new([4, 6]),
+        MapSet.new([6, 7]),
+        MapSet.new([7, 8]),
+        MapSet.new([3, 5])
+      ]
+      IO.inspect Graph.find_path_by({[1, 2, 3, 4, 5, 6, 7], set}, 5, &(&1 || true), [1])
+    end
   end
 end

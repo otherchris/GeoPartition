@@ -122,6 +122,56 @@ defmodule GeoPartition.Graph do
   end
 
   def dehole({v, e}) do
-
+    inters = Enum.filter(v, &(&1.properties.ring == :intersection))
+    for x <- inters, y <- inters do
+      if x == y do
+        nil
+      else
+        [x, y]
+      end
+    end
+    |> Enum.reject(&is_nil(&1))
+    |> Enum.uniq_by(&MapSet.new(&1))
   end
+
+  defp get_next_vertex(next, last) do
+    if next == nil do
+      nil
+    else
+      MapSet.difference(next, MapSet.new([last]))
+      |> Enum.to_list
+      |> hd
+    end
+  end
+
+  def find_path_by({v, e}, target, fun, list) do
+    last = List.last(list)
+    next = Enum.find(e, &(
+      MapSet.member?(&1, last)
+      && MapSet.disjoint?(&1, MapSet.new(Enum.slice(list, 0..-2)))
+      && fun.(&1)))
+    next_vertex = get_next_vertex(next, last)
+    cond do
+      list == [] -> nil
+      next == nil && length(list) == 1 -> nil # we're done, no path
+      next == nil || Enum.member?(list, next_vertex) ->
+        next_graph = delete_vertex({v, e}, last)
+        next_list = Enum.slice(list, 0..-2)
+        find_path_by(next_graph, target, fun, next_list)
+      next_vertex == target ->
+        list
+        |> Kernel.++([next_vertex])
+        |> Enum.chunk_every(2, 1, :discard)
+        |> Enum.map(&MapSet.new(&1))
+      true -> find_path_by({v, e}, target, fun, list ++ [next_vertex])
+    end
+  end
+
+  defp delete_vertex({v,e}, vertex) do
+    edges = e
+    |> Enum.reject(&MapSet.member?(&1, vertex))
+    vertices = Enum.reject(v, &(&1 == vertex))
+    {vertices, edges}
+  end
+
 end
