@@ -26,6 +26,7 @@ defmodule GeoPartition.MixProject do
       {:mix_test_watch, "~> 0.8", only: :dev, runtime: false},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
       {:geo, "~> 3.0"},
+      {:credo, "~> 0.10.0", only: [:dev, :test], runtime: false},
       {:topo, git: "git@github.com:otherchris/topo.git"}
     ]
   end
