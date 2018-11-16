@@ -160,13 +160,13 @@ defmodule GeoPartition.GraphTest do
 
   describe "create graph from polygon" do
     test "no holes", %{simple_vertices: vertices, simple_edges: edges} do
-      graph = Graph.from_polygon(Shapes.simple_rect)
-      assert MapSet.new(graph.vertices) == MapSet.new(vertices)
-      assert MapSet.new(graph.edges) == MapSet.new(edges)
+      {v, e} = Graph.from_polygon(Shapes.simple_rect)
+      assert MapSet.new(v) == MapSet.new(vertices)
+      assert MapSet.new(e) == MapSet.new(edges)
     end
 
     test "simple hole", %{simple_vertices: vertices, simple_edges: edges} do
-      graph = Graph.from_polygon(Shapes.rect_with_hole)
+      {v, e} = Graph.from_polygon(Shapes.rect_with_hole)
       vertices = vertices ++ [
         %Geo.Point{
           coordinates: {-84.20059204101562, 36.88566207736627},
@@ -203,13 +203,13 @@ defmodule GeoPartition.GraphTest do
         MapSet.new([Enum.at(vertices, 6), Enum.at(vertices, 7)]),
         MapSet.new([Enum.at(vertices, 7), Enum.at(vertices, 4)])
       ]
-      assert MapSet.new(graph.vertices) == MapSet.new(vertices)
-      assert MapSet.new(graph.edges) == MapSet.new(edges)
+      assert MapSet.new(v) == MapSet.new(vertices)
+      assert MapSet.new(e) == MapSet.new(edges)
     end
 
     @tag :skip
     test "corner hole" do
-      graph = %Graph{}#Graph.from_polygon(Shapes.rect_with_corner_hole)
+      graph = {[], []}
       vertices = [
         #A
         %Geo.Point{
@@ -326,7 +326,7 @@ defmodule GeoPartition.GraphTest do
     end
 
     test "to po9lygon" do
-      %{vertices: v, edges: e} = Graph.from_polygon(Shapes.intersecting_diamonds)
+      {v, e} = Graph.from_polygon(Shapes.intersecting_diamonds)
       deholed = Graph.dehole({v, e})
       Graph.to_polygon(deholed)
       |> Geo.JSON.encode!

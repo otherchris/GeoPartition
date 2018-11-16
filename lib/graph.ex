@@ -5,20 +5,14 @@ defmodule GeoPartition.Graph do
 
   alias GeoPartition.{Geometry, Util}
 
-  defstruct [
-    vertices: [],
-    edges: []
-  ]
+  @type graph() :: {list(), list(MapSet)}
 
   def from_polygon(shape = %{__struct__: Geo.Polygon, coordinates: coords = [outer|holes]}) do
     {v, e} = add_ring_to_graph({[], []}, outer, :outer)
     {vertices, edges} = List.foldl(holes, {v, e}, &add_ring_to_graph(&2, &1, :inner))
                         |> add_coverage(coords)
                         |> add_intersections
-    %GeoPartition.Graph{
-      vertices: vertices,
-      edges: edges
-    };
+    {vertices, edges}
   end
 
   #def find_path_by({v, e}, target, fun, list) do
@@ -243,16 +237,22 @@ defmodule GeoPartition.Graph do
     {vertices, edges}
   end
 
-  def delete_vertices_by({v, e}, fun) do
-    {new_v, new_e} = for vertex <- v do
-      if fun.(vertex) do
-        delete_vertex({v, e}, vertex)
-      else
-        {v, e}
-      end
-    end
+  @doc """
+  Produce the induced subgraph of a graph resulting from removing vertices that satisfy `condition`
+
+  ## Examples
+  ```
+  iex> v = [1, 2, 3, 4]
+  iex> edge_pairs = [[1, 2], [1, 3], [2, 3], [3, 4], [4, 1]]
+  iex> e = Enum.map(edge_pairs, &MapSet.new(&1))
+  iex> GeoPartition.Graph.delete_vertices_by({v, e}, &(rem(&1, 2) == 0))
+  {[1, 3], [MapSet.new([1, 3])]}
+  ```
+  """
+  @spec delete_vertices_by(graph(), function()) :: graph()
+  def delete_vertices_by({v, e}, condition) do
+    for(vertex <- v, condition.(vertex), do: delete_vertex({v, e}, vertex))
     |> List.foldr({v, e}, &(intersection(&2, &1)))
-    {MapSet.to_list(new_v), MapSet.to_list(new_e)}
   end
 
   @doc """
@@ -266,11 +266,8 @@ defmodule GeoPartition.Graph do
   {[1, 2], [MapSet.new([1, 2])]}
   ```
   """
+  @spec intersection(graph(), graph()) :: graph()
   def intersection({v1, e1}, {v2, e2}) do
-    vertex_sets = [v1, v2] |> Enum.map(&MapSet.new(&1))
-    vertices = MapSet.intersection(List.first(vertex_sets), List.last(vertex_sets)) |> MapSet.to_list
-    edge_sets = [e1, e2] |> Enum.map(&MapSet.new(&1))
-    edges = MapSet.intersection(List.first(edge_sets), List.last(edge_sets)) |> MapSet.to_list
-    {vertices, edges}
+    {for(x <- v1, y <- v2, x == y, do: x), for(x <- e1, y <- e2, x == y, do: x)}
   end
 end
