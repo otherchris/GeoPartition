@@ -202,35 +202,91 @@ defmodule GeoPartition.Graph do
     {v, edges ++ [MapSet.new(edge)]}
   end
 
-  def find_path_by({v, e}, target, list, choose_by, sort_by) do
-    prev = List.last(list)
-    used = Enum.slice(list, 0..-2)
+  def clique(vertices) do
+    edges = for(v1 <- vertices, v2 <- vertices, v1 != v2, do: MapSet.new([v1, v2]))
+    |> Enum.uniq
+    {vertices, edges}
+  end
 
-    next = Enum.filter(e, &(
-      MapSet.member?(&1, prev)
-      && MapSet.disjoint?(&1, MapSet.new(used))
-      && (choose_by.(get_next_vertex(&1, prev) || get_next_vertex(&1, prev) == target))
-    ))
-    |> Enum.sort_by(&sort_by.(&1), &>=/2)
-    |> List.first
+  @doc """
+  Return a set of edges representing a path from `inital` to `target` wherein every vertex in
+  between satisfies `choose_by`. If `sort_by` is specified, it will be used to prioritize
+  candidate vertices.
+
+  ## Examples
+  ```
+  iex> v = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  iex> {v, e} = GeoPartition.Graph.clique(v)
+  iex> GeoPartition.Graph.find_path_by({v, e}, 1, 9, &(rem(&1, 2) == 0))
+  [MapSet.new([1, 2]), MapSet.new([2, 4]), MapSet.new([4, 6]), MapSet.new([6, 8]), MapSet.new([8, 9])]
+
+  iex> v = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  iex> {v, e} = GeoPartition.Graph.clique(v)
+  iex> GeoPartition.Graph.find_path_by({v, e}, 1, 9, &(rem(&1, 2) == 0), &Kernel.>=(&1, &2))
+  [MapSet.new([1, 9])]
+  ```
+  """
+  def find_path_by({v, e}, first, target, choose_by, sort_by \\ &Kernel.<=(&1, &2)) do
+    fpb({v, e}, first, target, choose_by, sort_by, [])
+  end
+
+  defp fpb({v, e}, prev, target, choose_by, sort_by, used) when is_list(used) do
+    next = get_next_edge(e, prev, target, choose_by, sort_by, used)
     next_vertex = get_next_vertex(next, prev)
     cond do
-      list == [] -> nil # we're done, no path
-      next == nil && length(list) == 1 -> nil # we're done, no path
-      next == nil || Enum.member?(used, next_vertex) -> # back up and try again
-        next_graph = delete_vertex({v, e}, prev)
-        next_list = Enum.slice(list, 0..-2)
-        find_path_by(next_graph, target, next_list, choose_by, sort_by)
       next_vertex == target -> # we're done, make the edges and return
-        list
-        |> Kernel.++([next_vertex])
+        used
+        |> Kernel.++([prev, next_vertex])
         |> Enum.chunk_every(2, 1, :discard)
         |> Enum.map(&MapSet.new(&1))
-      true -> find_path_by({v, e}, target, list ++ [next_vertex], choose_by, sort_by) # ok, go to next step
+      next == nil && length(used) == 0 ->
+        nil # we're done, no path
+      next == nil || Enum.member?(used, next_vertex) -> # back up and try again
+        next_graph = delete_vertex({v, e}, prev)
+        next_used = Enum.slice(used, 0..-2)
+        fpb(next_graph, List.last(used), target, choose_by, sort_by, next_used)
+      true -> # ok, go to the next step
+        fpb({v, e}, next_vertex, target, choose_by, sort_by, used ++ [prev])
     end
   end
 
-  defp delete_vertex({v,e}, vertex) do
+  defp get_next_vertex(next, last) do
+    if next == nil do
+      nil
+    else
+      MapSet.difference(next, MapSet.new([last]))
+      |> Enum.to_list
+      |> hd
+    end
+  end
+
+  defp get_next_edge(e, prev, target, choose_by, sort_by, used) do
+    a = Enum.filter(e, &(
+      MapSet.member?(&1, prev)
+      && MapSet.disjoint?(&1, MapSet.new(used))
+      && (choose_by.(get_next_vertex(&1, prev)) || get_next_vertex(&1, prev) == target)
+    ))
+    IO.inspect{ "BERGER", prev, a, used }
+    a
+    |> Enum.sort_by(&get_next_vertex(&1, prev), &sort_by.(&1, &2))
+    |> IO.inspect
+    |> List.first
+  end
+
+  @doc """
+  Produce the induced subgraph of a graph resulting from removing a vertex
+
+  ## Examples
+  ```
+  iex> v = [1, 2, 3, 4]
+  iex> edge_pairs = [[1, 2], [1, 3], [2, 3], [3, 4], [4, 1]]
+  iex> e = Enum.map(edge_pairs, &MapSet.new(&1))
+  iex> GeoPartition.Graph.delete_vertex({v, e}, 3)
+  {[1, 2, 4], [MapSet.new([1, 2]), MapSet.new([1, 4])]}
+  ```
+  """
+  @spec delete_vertex(graph(), any()):: graph()
+  def delete_vertex({v,e}, vertex) do
     edges = e
     |> Enum.reject(&MapSet.member?(&1, vertex))
     vertices = Enum.reject(v, &(&1 == vertex))
