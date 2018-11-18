@@ -114,6 +114,31 @@ defmodule GeoPartition.Graph do
     {vertices, edges}
   end
 
+  @doc """
+  Produce a subdivision of the given edges using the given point.
+
+  Merges duplicate edges.
+  ## Examples
+  ```
+  iex> g = {[1, 2, 3, 4], [MapSet.new([1, 2]), MapSet.new([2, 3]), MapSet.new([3, 4]), MapSet.new([4, 1])]}
+  iex> GeoPartition.Graph.subdivide(g, [MapSet.new([1, 2]), MapSet.new([3, 4])], "x")
+  {[1, 2, 3, 4, "x"], [MapSet.new([1, "x"]), MapSet.new([2, "x"]), MapSet.new([3, "x"]), MapSet.new([4, "x"]), MapSet.new([2, 3]), MapSet.new([4, 1])]}
+
+  iex> g = {[1, 2, 3], [MapSet.new([1, 2]), MapSet.new([2, 3]), MapSet.new([3, 1])]}
+  iex> GeoPartition.Graph.subdivide(g, [MapSet.new([1, 2]), MapSet.new([2, 3])], "x")
+  {[1, 2, 3, "x"], [MapSet.new([1, "x"]), MapSet.new([2, "x"]), MapSet.new([3, "x"]), MapSet.new([1, 3])]}
+  ````
+  """
+  @spec subdivide(graph, list(MapSet), any) :: graph
+  def subdivide({vertices, edges}, edges_to_subdivide, new_vertex) do
+    vertices = vertices ++ [new_vertex]
+    edges = new_edges(edges_to_subdivide, new_vertex)
+            |> Kernel.++(edges)
+            |> Enum.reject(&(Enum.member?(edges_to_subdivide, &1)))
+            |> Enum.uniq
+    {vertices, edges}
+  end
+
   defp new_edges(intersected_edges, point) do
     inters = Enum.map(intersected_edges, &MapSet.to_list(&1))
              |> List.flatten
@@ -182,16 +207,6 @@ defmodule GeoPartition.Graph do
     case find_path_by(graph, stop, [start], &(covered_inner(&1)), &(covered_inner_edge(&1))) do
       nil -> find_path_by(graph, stop, [start], &(&1.properties.ring != :outer), &(&1))
       path -> path
-    end
-  end
-
-  defp get_next_vertex(next, last) do
-    if next == nil do
-      nil
-    else
-      MapSet.difference(next, MapSet.new([last]))
-      |> Enum.to_list
-      |> hd
     end
   end
 
