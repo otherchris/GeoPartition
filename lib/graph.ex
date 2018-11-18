@@ -17,7 +17,7 @@ defmodule GeoPartition.Graph do
 
   #def find_path_by({v, e}, target, fun, list) do
   def to_polygon({v, e}) do
-    {_, edges} = find_cycle({v, e})
+    {_, edges} = cycle_sort({v, e})
     coordinates = edges
                   |> Enum.chunk_every(2, 1, :discard)
                   |> Kernel.++([[List.first(edges), List.last(edges)]])
@@ -195,13 +195,54 @@ defmodule GeoPartition.Graph do
     end
   end
 
-  def find_cycle({v, e}) do
-    edge = hd(e)
-           |> Enum.to_list
-    edges = find_path_by({v, tl(e)}, List.first(edge), [List.last(edge)], &(&1 || true), &(&1))
-    {v, edges ++ [MapSet.new(edge)]}
+  @doc """
+  If a graph is a cycle, returns the graph with the edeges in cycle order
+
+  ## Examples
+  ```
+  iex> v = [1, 2, 3, 4]
+  iex> e = [MapSet.new([1, 2]), MapSet.new([2, 3]), MapSet.new([4, 1]), MapSet.new([3, 4])]
+  iex> GeoPartition.Graph.cycle_sort({v, e})
+  {:ok, {[1,2,3,4], [MapSet.new([1, 4]), MapSet.new([4, 3]), MapSet.new([3, 2]), MapSet.new([2, 1])]}}
+
+  iex> v = [1, 2, 3, 4]
+  iex> e = [MapSet.new([1, 2]), MapSet.new([2, 3]), MapSet.new([4, 1]), MapSet.new([3, 4]), MapSet.new([2, 4])]
+  iex> GeoPartition.Graph.cycle_sort({v, e})
+  {:error, "not a cycle"}
+
+  iex> v = [1, 2, 3, 4]
+  iex> e = [MapSet.new([1, 2]), MapSet.new([2, 3]), MapSet.new([2, 4]), MapSet.new([3, 4])]
+  iex> GeoPartition.Graph.cycle_sort({v, e})
+  {:error, "not a cycle"}
+  ```
+  """
+  @spec cycle_sort(graph) :: {:ok, graph} | {:error, string}
+  def cycle_sort(graph = {v, e}) do
+    if length(v) != length(e) do
+      {:error, "not a cycle"}
+    else
+      cycle_sort_fun({v, e})
+    end
   end
 
+  defp cycle_sort_fun({v, e}) do
+    edge = hd(e)
+           |> Enum.to_list
+    case find_path_by({v, tl(e)}, List.first(edge), List.last(edge), &(&1 || true), &(&1)) do
+      nil -> {:error, "not a cycle"}
+      edges -> {:ok, {v, edges ++ [MapSet.new(edge)]}}
+    end
+  end
+
+  @doc """
+  Returns the complete graph induced by a set of vertices
+
+  ## Examples
+  ```
+  iex> GeoPartition.Graph.clique([1, 2, 3])
+  {[1, 2, 3], [MapSet.new([1, 2]), MapSet.new([1, 3]), MapSet.new([2, 3])]}
+  ```
+  """
   def clique(vertices) do
     edges = for(v1 <- vertices, v2 <- vertices, v1 != v2, do: MapSet.new([v1, v2]))
     |> Enum.uniq
@@ -226,7 +267,8 @@ defmodule GeoPartition.Graph do
   [MapSet.new([1, 9])]
   ```
   """
-  def find_path_by({v, e}, first, target, choose_by, sort_by \\ &Kernel.<=(&1, &2)) do
+  @spec find_path_by(graph, any, any, fun, fun) :: list
+  def find_path_by(graph = {v, e}, first, target, choose_by, sort_by \\ &Kernel.<=(&1, &2)) do
     fpb({v, e}, first, target, choose_by, sort_by, [])
   end
 
@@ -266,10 +308,8 @@ defmodule GeoPartition.Graph do
       && MapSet.disjoint?(&1, MapSet.new(used))
       && (choose_by.(get_next_vertex(&1, prev)) || get_next_vertex(&1, prev) == target)
     ))
-    IO.inspect{ "BERGER", prev, a, used }
     a
     |> Enum.sort_by(&get_next_vertex(&1, prev), &sort_by.(&1, &2))
-    |> IO.inspect
     |> List.first
   end
 
