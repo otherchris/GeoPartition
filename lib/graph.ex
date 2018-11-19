@@ -30,7 +30,6 @@ defmodule GeoPartition.Graph do
       coordinates: [coordinates ++ [hd(coordinates)]],
       srid: nil
     }
-
   end
 
   def add_coverage({v, e}, coords = [outer|holes]) do
@@ -111,6 +110,7 @@ defmodule GeoPartition.Graph do
     edges = new_edges(intersected_edges, c)
             |> Kernel.++(edges)
             |> Enum.reject(&(Enum.member?(intersected_edges, &1)))
+
     {vertices, edges}
   end
 
