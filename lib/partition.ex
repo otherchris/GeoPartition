@@ -1,6 +1,6 @@
 defmodule GeoPartition.Partition do
 
-  alias GeoPartition.Util
+  alias GeoPartition.{Graph, Util}
 
   def partition(shape = %{__struct__: Geo.Polygon, coordinates: [ring]}) do
     ring
@@ -59,4 +59,57 @@ defmodule GeoPartition.Partition do
     end)
     |> Enum.reject(&is_nil(&1))
   end
+
+  def dehole({v, e}) do
+    inters = Enum.filter(v, &(&1.properties.ring == :intersection))
+    new_edges = for x <- inters, y <- inters do
+      if x == y do
+        nil
+      else
+        [x, y]
+      end
+    end
+    |> Enum.reject(&is_nil(&1))
+    |> Enum.uniq_by(&MapSet.new(&1))
+    |> Enum.map(&get_best_path({v, e}, &1))
+    |> List.flatten
+    |> Enum.uniq
+    |> Enum.reject(fn(x) ->
+      Enum.to_list(x)
+      |> Enum.map(&(&1.properties.ring == :intersection))
+      |> IO.inspect
+      |> List.foldl(true, &(&1 && &2))
+    end)
+    |> IO.inspect
+    Graph.delete_vertices_by({v, e ++ new_edges}, &uncovered_inner(&1))
+    |> Graph.delete_vertices_by(&covered_outer(&1))
+    {v, new_edges}
+  end
+
+  defp covered_inner(vertex) do
+    vertex.properties.ring == :inner && vertex.properties.covered
+  end
+
+  defp uncovered_inner(vertex) do
+    vertex.properties.ring == :inner && vertex.properties.covered == false
+  end
+
+  defp covered_outer(vertex) do
+    vertex.properties.ring == :outer && vertex.properties.covered == true
+  end
+
+  defp covered_inner_edge(edge) do
+    edge
+    |> Enum.map(&covered_inner(&1))
+    |> List.foldl(false, &(&1 || &2))
+    |> IO.inspect
+  end
+
+  defp get_best_path(graph, [start, stop]) do
+    case Graph.find_path_by(graph, stop, [start], &(covered_inner(&1)), &(covered_inner_edge(&1))) do
+      nil -> Graph.find_path_by(graph, stop, [start], &(&1.properties.ring != :outer), &(&1))
+      path -> path
+    end
+  end
+
 end

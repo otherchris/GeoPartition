@@ -20,7 +20,7 @@ defmodule GeoPartition.Graph do
   iex> g = {[1, 2, 3], [MapSet.new([1, 2]), MapSet.new([2, 3]), MapSet.new([3, 1])]}
   iex> GeoPartition.Graph.subdivide(g, [MapSet.new([1, 2]), MapSet.new([2, 3])], "x")
   {[1, 2, 3, "x"], [MapSet.new([1, "x"]), MapSet.new([2, "x"]), MapSet.new([3, "x"]), MapSet.new([1, 3])]}
-  ````
+  ```
   """
   @spec subdivide(graph, list(MapSet), any) :: graph
   def subdivide({vertices, edges}, edges_to_subdivide, new_vertex) do

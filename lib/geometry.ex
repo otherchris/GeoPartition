@@ -9,11 +9,46 @@ defmodule GeoPartition.Geometry do
   @type graph() :: {list(), list(MapSet)}
 
   @doc """
-  Converts a graph to a polygon
-  """
+  Converts a cycle (graph) into a polygon.
 
-  def to_polygon({v, e}) do
-    {_, edges} = Graph.cycle_sort({v, e})
+  ## Examples
+  ```
+  iex> cycle = {
+  ...>  [
+  ...>    %Geo.Point{ coordinates: {1.0, 1.0}, properties: %{covered: false, ring: :outer}, srid: nil },
+  ...>    %Geo.Point{ coordinates: {3.0, 2.0}, properties: %{covered: false, ring: :outer}, srid: nil },
+  ...>    %Geo.Point{ coordinates: {1.0, 3.0}, properties: %{covered: false, ring: :outer}, srid: nil }
+  ...>  ], [
+  ...>    MapSet.new([
+  ...>      %Geo.Point{coordinates: {1.0, 1.0}, properties: %{covered: false, ring: :outer}, srid: nil},
+  ...>      %Geo.Point{coordinates: {3.0, 2.0}, properties: %{covered: false, ring: :outer}, srid: nil}
+  ...>    ]),
+  ...>    MapSet.new([
+  ...>      %Geo.Point{coordinates: {1.0, 3.0}, properties: %{covered: false, ring: :outer}, srid: nil},
+  ...>      %Geo.Point{coordinates: {3.0, 2.0}, properties: %{covered: false, ring: :outer}, srid: nil}
+  ...>    ]),
+  ...>    MapSet.new([
+  ...>      %Geo.Point{coordinates: {1.0, 3.0}, properties: %{covered: false, ring: :outer}, srid: nil},
+  ...>      %Geo.Point{coordinates: {1.0, 1.0}, properties: %{covered: false, ring: :outer}, srid: nil}
+  ...>    ])
+  ...>  ]}
+  iex>  GeoPartition.Geometry.cycle_to_polygon(cycle)
+  %Geo.Polygon{
+     coordinates: [
+       [
+         {1.0, 3.0},
+         {3.0, 2.0},
+         {1.0, 1.0},
+         {1.0, 3.0}
+       ]
+     ],
+    properties: %{},
+    srid: nil
+  }
+  ```
+  """
+  def cycle_to_polygon({v, e}) do
+    {:ok, {_, edges}} = Graph.cycle_sort({v, e})
     coordinates = edges
                   |> Enum.chunk_every(2, 1, :discard)
                   |> Kernel.++([[List.first(edges), List.last(edges)]])
