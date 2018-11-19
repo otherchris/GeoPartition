@@ -1,28 +1,11 @@
 defmodule GeoPartition.Graph do
   @moduledoc """
-  Graph representation of a polygon
+  Some functions for working with undirected graphs
   """
 
   alias GeoPartition.{Geometry, Util}
 
   @type graph() :: {list(), list(MapSet)}
-
-  #def find_path_by({v, e}, target, fun, list) do
-  def to_polygon({v, e}) do
-    {_, edges} = cycle_sort({v, e})
-    coordinates = edges
-                  |> Enum.chunk_every(2, 1, :discard)
-                  |> Kernel.++([[List.first(edges), List.last(edges)]])
-                  |> Enum.map(fn([a, b]) -> MapSet.intersection(a, b) end)
-                  |> Enum.map(&MapSet.to_list(&1))
-                  |> List.flatten
-                  |> Enum.map(&(&1.coordinates))
-    %Geo.Polygon{
-      properties: %{},
-      coordinates: [coordinates ++ [hd(coordinates)]],
-      srid: nil
-    }
-  end
 
   @doc """
   Produce a subdivision of the given edges using the given point.
@@ -42,7 +25,8 @@ defmodule GeoPartition.Graph do
   @spec subdivide(graph, list(MapSet), any) :: graph
   def subdivide({vertices, edges}, edges_to_subdivide, new_vertex) do
     vertices = vertices ++ [new_vertex]
-    edges = new_edges(edges_to_subdivide, new_vertex)
+    edges = edges_to_subdivide
+            |> new_edges(new_vertex)
             |> Kernel.++(edges)
             |> Enum.reject(&(Enum.member?(edges_to_subdivide, &1)))
             |> Enum.uniq
@@ -50,7 +34,8 @@ defmodule GeoPartition.Graph do
   end
 
   defp new_edges(intersected_edges, point) do
-    inters = Enum.map(intersected_edges, &MapSet.to_list(&1))
+    inters = intersected_edges
+             |> Enum.map(&MapSet.to_list(&1))
              |> List.flatten
              |> Enum.map(&MapSet.new([&1, point]))
   end
@@ -66,58 +51,6 @@ defmodule GeoPartition.Graph do
 
   defp edge_to_seg(e) do
     e |> MapSet.to_list |> points_to_seg
-  end
-
-  def dehole({v, e}) do
-    inters = Enum.filter(v, &(&1.properties.ring == :intersection))
-    new_edges = for x <- inters, y <- inters do
-      if x == y do
-        nil
-      else
-        [x, y]
-      end
-    end
-    |> Enum.reject(&is_nil(&1))
-    |> Enum.uniq_by(&MapSet.new(&1))
-    |> Enum.map(&get_best_path({v, e}, &1))
-    |> List.flatten
-    |> Enum.uniq
-    |> Enum.reject(fn(x) ->
-      Enum.to_list(x)
-      |> Enum.map(&(&1.properties.ring == :intersection))
-      |> IO.inspect
-      |> List.foldl(true, &(&1 && &2))
-    end)
-    |> IO.inspect
-    delete_vertices_by({v, e ++ new_edges}, &uncovered_inner(&1))
-    |> delete_vertices_by(&covered_outer(&1))
-    {v, new_edges}
-  end
-
-  defp covered_inner(vertex) do
-    vertex.properties.ring == :inner && vertex.properties.covered
-  end
-
-  defp uncovered_inner(vertex) do
-    vertex.properties.ring == :inner && vertex.properties.covered == false
-  end
-
-  defp covered_outer(vertex) do
-    vertex.properties.ring == :outer && vertex.properties.covered == true
-  end
-
-  defp covered_inner_edge(edge) do
-    edge
-    |> Enum.map(&covered_inner(&1))
-    |> List.foldl(false, &(&1 || &2))
-    |> IO.inspect
-  end
-
-  defp get_best_path(graph, [start, stop]) do
-    case find_path_by(graph, stop, [start], &(covered_inner(&1)), &(covered_inner_edge(&1))) do
-      nil -> find_path_by(graph, stop, [start], &(&1.properties.ring != :outer), &(&1))
-      path -> path
-    end
   end
 
   @doc """
@@ -151,7 +84,8 @@ defmodule GeoPartition.Graph do
   end
 
   defp cycle_sort_fun({v, e}) do
-    edge = hd(e)
+    edge = e
+           |> hd
            |> Enum.to_list
     case find_path_by({v, tl(e)}, List.first(edge), List.last(edge), &(&1 || true), &(&1)) do
       nil -> {:error, "not a cycle"}
@@ -206,7 +140,7 @@ defmodule GeoPartition.Graph do
         |> Kernel.++([prev, next_vertex])
         |> Enum.chunk_every(2, 1, :discard)
         |> Enum.map(&MapSet.new(&1))
-      next == nil && length(used) == 0 ->
+      next == nil && used == [] ->
         nil # we're done, no path
       next == nil || Enum.member?(used, next_vertex) -> # back up and try again
         next_graph = delete_vertex({v, e}, prev)
@@ -221,7 +155,8 @@ defmodule GeoPartition.Graph do
     if next == nil do
       nil
     else
-      MapSet.difference(next, MapSet.new([last]))
+      next
+      |> MapSet.difference(MapSet.new([last]))
       |> Enum.to_list
       |> hd
     end
@@ -251,7 +186,7 @@ defmodule GeoPartition.Graph do
   ```
   """
   @spec delete_vertex(graph(), any()):: graph()
-  def delete_vertex({v,e}, vertex) do
+  def delete_vertex({v, e}, vertex) do
     edges = e
     |> Enum.reject(&MapSet.member?(&1, vertex))
     vertices = Enum.reject(v, &(&1 == vertex))

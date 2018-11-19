@@ -9,6 +9,26 @@ defmodule GeoPartition.Geometry do
   @type graph() :: {list(), list(MapSet)}
 
   @doc """
+  Converts a graph to a polygon
+  """
+
+  def to_polygon({v, e}) do
+    {_, edges} = Graph.cycle_sort({v, e})
+    coordinates = edges
+                  |> Enum.chunk_every(2, 1, :discard)
+                  |> Kernel.++([[List.first(edges), List.last(edges)]])
+                  |> Enum.map(fn([a, b]) -> MapSet.intersection(a, b) end)
+                  |> Enum.map(&MapSet.to_list(&1))
+                  |> List.flatten
+                  |> Enum.map(&(&1.coordinates))
+    %Geo.Polygon{
+      properties: %{},
+      coordinates: [coordinates ++ [hd(coordinates)]],
+      srid: nil
+    }
+  end
+
+  @doc """
   Converts a polygon (`Geo.Polygon`) to a graph. If the polygon has holes that overlap the
   outer ring, intersecting edges will be subdivided at the points of intersection
 
