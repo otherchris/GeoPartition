@@ -118,7 +118,8 @@ defmodule GeoPartition.Geometry do
   """
   def polygon_to_graph(shape = %{__struct__: Geo.Polygon, coordinates: coords = [outer|holes]}) do
     {v, e} = add_ring_to_graph({[], []}, outer, :outer)
-    {vertices, edges} = List.foldl(holes, {v, e}, &add_ring_to_graph(&2, &1, :inner))
+    {vertices, edges} = holes
+                        |> List.foldl({v, e}, &add_ring_to_graph(&2, &1, :inner))
                         |> add_coverage(coords)
                         |> add_intersections
                         |> Graph.delete_vertices_by(&(&1.properties.ring == :inner && !&1.properties.covered))
@@ -129,7 +130,8 @@ defmodule GeoPartition.Geometry do
 
   defp filter_edges({v, e}) do
     {v, Enum.filter(e, fn(x) ->
-      MapSet.to_list(x)
+      x
+      |> MapSet.to_list
       |> Enum.find(&(&1.properties.ring == :outer && !&1.properties.covered))
       |> is_nil
     end)}
@@ -146,11 +148,10 @@ defmodule GeoPartition.Geometry do
       }
     end)
 
-    offset = length(e)
     edges = vertices
             |> Enum.chunk_every(2, 1, :discard)
             |> Enum.map(&MapSet.new(&1))
-    {v ++ Enum.slice(vertices, 0..-2), e ++ edges}
+    {v ++ Enum.uniq(vertices), e ++ edges}
   end
 
   defp add_coverage({v, e}, coords = [outer|holes]) do
@@ -186,7 +187,7 @@ defmodule GeoPartition.Geometry do
 
   defp covered?(ring = [{a, b}|_], point = %{__struct__: Geo.Point}) do
     Topo.contains?(
-      %Geo.Polygon{ coordinates: [ring] },
+      %Geo.Polygon{coordinates: [ring]},
       point
     )
   end
@@ -210,7 +211,6 @@ defmodule GeoPartition.Geometry do
     end
   end
 
-
   defp reduce_intersection_edges({v, e}) do
     edges = Enum.reject(e, fn(ed) ->
       [x, y] = MapSet.to_list(ed)
@@ -231,7 +231,6 @@ defmodule GeoPartition.Geometry do
   defp edge_to_seg(e) do
     e |> MapSet.to_list |> points_to_seg
   end
-
 
   @doc """
   Determines if a Point is _very nearly_ on a LineString. Creates a polar rectangle
@@ -341,7 +340,7 @@ defmodule GeoPartition.Geometry do
       !Topo.intersects?(l1, l2) -> {:disjoint, "disjoint"}
       !crosses?(l1, l2) && Topo.intersects?(l1, l2) -> {:degen, "degen"}
       true ->
-        u = ((x4-x3)*(y1-y3)-(y4-y3)*(x1-x3)) / ((y4-y3)*(x2-x1)-(x4-x3)*(y2-y1))
+        u = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / ((y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1))
         {:intersects, %Geo.Point{
           coordinates: {
             x1 + u * (x2 - x1),
@@ -353,18 +352,58 @@ defmodule GeoPartition.Geometry do
   end
 
   @doc """
-  Find the area WIP
+  Find the area of a polygon. To find geographic area based on lat/long coords, use `geo: :globe`,
+  default is `geo: :flat`
+
+  ## Examples
+  ```
+  iex> shape = %Geo.Polygon{
+  ...>   coordinates: [
+  ...>     [
+  ...>       {0.0, 0.0},
+  ...>       {4.0, 0.0},
+  ...>       {4.0, 3.0},
+  ...>       {0.0, 3.0},
+  ...>       {0.0, 0.0},
+  ...>     ],
+  ...>     [
+  ...>       {1.0, 1.0},
+  ...>       {3.0, 1.0},
+  ...>       {3.0, 4.0},
+  ...>       {1.0, 4.0},
+  ...>       {1.0, 1.0},
+  ...>     ]
+  ...>   ]
+  ...> }
+  iex> GeoPartition.Geometry.area(shape, [geo: :flat])
+  8.0
+  ```
   """
-  def area(shape = %{__struct__: Geo.Polygon}) do
-    shape.coordinates
-    |> Util.get_all_coords
+
+  def area(shape = %Geo.Polygon{}, opts \\ [geo: :flat]) do
+    %{coordinates: [outer|holes]} = shape
+                                    |> polygon_to_graph
+                                    |> cycle_to_polygon
+    hole_area = holes
+                |> Enum.map(&ring_area(&1, opts))
+                |> List.foldl(0, &Kernel.+(&1, &2))
+    ring_area(outer, opts) - hole_area
+  end
+
+  defp ring_area(shape = [{a, b}|_], opts) do
+    flat_area = shape
     |> Enum.chunk_every(2, 1, :discard)
     |> Enum.map(&Util.det_seg(&1))
     |> List.foldr(0, &Kernel.+(&1, &2))
     |> Kernel./(2)
     |> abs
-    |> Kernel.*(get_long_factor(shape.coordinates))
-    |> Kernel.*(69.172)
+    if opts[:geo] == :globe do
+      flat_area
+      |> Kernel.*(get_long_factor(shape))
+      |> Kernel.*(69.172)
+    else
+      flat_area
+    end
   end
 
   defp get_long_factor(poly = %{__struct__: Geo.MultiPolygon}) do
@@ -374,7 +413,6 @@ defmodule GeoPartition.Geometry do
 
   defp get_long_factor(coords) when is_list(coords) do
     coords
-    |> Util.get_all_coords
     |> Enum.map(fn({a, b}) -> b end)
     |> Util.geo_mean
     |> Util.deg_to_rad

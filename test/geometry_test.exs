@@ -219,20 +219,20 @@ defmodule GeoPartition.GeometryTest do
 
   describe "calculate area of a polygon" do
     test "find area" do
-      poly = %Geo.Polygon{coordinates: Shapes.monster_multi_out.coordinates |> hd}
-      assert Geometry.area(poly) == 161.89243343361437
+      poly = Shapes.rect_with_corner_hole
+      assert Geometry.area(poly, [geo: :globe]) == 144.00153645029894
     end
 
     test "add area to props" do
-      poly = %Geo.Polygon{coordinates: Shapes.monster_multi_out.coordinates |> hd}
+      poly = Shapes.rect_with_corner_hole
       new_poly = Util.add_area(poly)
-      assert new_poly.properties.area == 161.89243343361437
+      assert new_poly.properties.area == 144.00153645029894
     end
 
     test "change existing area" do
-      poly = %Geo.Polygon{coordinates: Shapes.monster_multi_out.coordinates |> hd, properties: %{area: 10}}
+      poly = Shapes.rect_with_corner_hole
       new_poly = Util.add_area(poly)
-      assert new_poly.properties.area == 161.89243343361437
+      assert new_poly.properties.area == 144.00153645029894
     end
   end
 end

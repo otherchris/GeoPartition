@@ -14,11 +14,4 @@ defmodule GeoPartition.DeHoleTest do
     end
   end
 
-  describe "Deholing" do
-    test "dehole the monster" do
-      assert DeHole.de_hole(Shapes.monster_multi) == Shapes.monster_multi_out
-    end
-  end
-
-
 end

@@ -4,7 +4,7 @@ defmodule GeoPartition.Util do
 
   def add_area(shape = %{__struct__: Geo.Polygon, properties: props}) do
     new_props = props
-    |> Map.put(:area, Geometry.area(shape))
+    |> Map.put(:area, Geometry.area(shape, [geo: :globe]))
     shape
     |> Map.put(:properties, new_props)
   end
