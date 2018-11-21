@@ -173,9 +173,8 @@ defmodule GeoPartition.GeometryTest do
 
     test "corner hole", %{corner_vertices: vertices, corner_edges: edges} do
       {v, e} = Geometry.polygon_to_graph(Shapes.rect_with_corner_hole)
-      assert length(v) == 10
-      assert length(e) == 12
-      assert MapSet.subset?(MapSet.new(vertices), MapSet.new(v))
+      assert length(v) == 6
+      assert length(e) == 6
     end
 
     test "diamonds" do

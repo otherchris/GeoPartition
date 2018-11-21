@@ -34,14 +34,14 @@ defmodule GeoPartition.Geometry do
   ...>  ]}
   iex>  GeoPartition.Geometry.cycle_to_polygon(cycle)
   %Geo.Polygon{
-     coordinates: [
-       [
-         {1.0, 3.0},
-         {3.0, 2.0},
-         {1.0, 1.0},
-         {1.0, 3.0}
-       ]
-     ],
+    coordinates: [
+      [
+        {1.0, 3.0},
+        {3.0, 2.0},
+        {1.0, 1.0},
+        {1.0, 3.0}
+      ]
+    ],
     properties: %{},
     srid: nil
   }
@@ -65,7 +65,7 @@ defmodule GeoPartition.Geometry do
 
   @doc """
   Converts a polygon (`Geo.Polygon`) to a graph. If the polygon has holes that overlap the
-  outer ring, intersecting edges will be subdivided at the points of intersection
+  outer ring, they will be circumvented
 
   ## Examples
   ```
@@ -88,53 +88,30 @@ defmodule GeoPartition.Geometry do
   iex> GeoPartition.Geometry.polygon_to_graph(shape)
   {[
     %Geo.Point{ coordinates: {1.0, 1.0}, properties: %{covered: false, ring: :outer}, srid: nil },
-    %Geo.Point{ coordinates: {3.0, 2.0}, properties: %{covered: true, ring: :outer}, srid: nil },
     %Geo.Point{ coordinates: {1.0, 3.0}, properties: %{covered: false, ring: :outer}, srid: nil },
     %Geo.Point{ coordinates: {2.0, 2.0}, properties: %{covered: true, ring: :inner}, srid: nil },
-    %Geo.Point{ coordinates: {4.0, 1.0}, properties: %{covered: false, ring: :inner}, srid: nil },
-    %Geo.Point{ coordinates: {4.0, 3.0}, properties: %{covered: false, ring: :inner}, srid: nil },
-    %Geo.Point{ coordinates: {2.5, 2.25}, srid: nil, properties: %{covered: false, ring: :intersection} },
-    %Geo.Point{ coordinates: {2.5, 1.75}, srid: nil, properties: %{covered: false, ring: :intersection} }
+    %Geo.Point{ coordinates: {2.5, 1.75}, srid: nil, properties: %{covered: false, ring: :intersection} },
+    %Geo.Point{ coordinates: {2.5, 2.25}, srid: nil, properties: %{covered: false, ring: :intersection} }
   ], [
-    MapSet.new([
-      %Geo.Point{coordinates: {1.0, 1.0}, properties: %{covered: false, ring: :outer}, srid: nil},
-      %Geo.Point{coordinates: {2.5, 1.75}, properties: %{covered: false, ring: :intersection}, srid: nil}
-    ]),
-    MapSet.new([
-      %Geo.Point{coordinates: {2.5, 1.75}, properties: %{covered: false, ring: :intersection}, srid: nil},
-      %Geo.Point{coordinates: {3.0, 2.0}, properties: %{covered: true, ring: :outer}, srid: nil}
-    ]),
-    MapSet.new([
-      %Geo.Point{coordinates: {2.0, 2.0}, properties: %{covered: true, ring: :inner}, srid: nil},
-      %Geo.Point{coordinates: {2.5, 1.75}, properties: %{covered: false, ring: :intersection}, srid: nil}
-    ]),
-    MapSet.new([
-      %Geo.Point{coordinates: {2.5, 1.75}, properties: %{covered: false, ring: :intersection}, srid: nil},
-      %Geo.Point{coordinates: {4.0, 1.0}, properties: %{covered: false, ring: :inner}, srid: nil}
-    ]),
     MapSet.new([
       %Geo.Point{coordinates: {1.0, 3.0}, properties: %{covered: false, ring: :outer}, srid: nil},
       %Geo.Point{coordinates: {2.5, 2.25}, properties: %{covered: false, ring: :intersection}, srid: nil}
     ]),
     MapSet.new([
-      %Geo.Point{coordinates: {2.5, 2.25}, properties: %{covered: false, ring: :intersection}, srid: nil},
-      %Geo.Point{coordinates: {3.0, 2.0}, properties: %{covered: true, ring: :outer}, srid: nil}
-    ]),
-    MapSet.new([
       %Geo.Point{coordinates: {2.0, 2.0}, properties: %{covered: true, ring: :inner}, srid: nil},
       %Geo.Point{coordinates: {2.5, 2.25}, properties: %{covered: false, ring: :intersection}, srid: nil}
     ]),
     MapSet.new([
-      %Geo.Point{coordinates: {2.5, 2.25}, properties: %{covered: false, ring: :intersection}, srid: nil},
-      %Geo.Point{coordinates: {4.0, 3.0}, properties: %{covered: false, ring: :inner}, srid: nil}
+      %Geo.Point{coordinates: {1.0, 1.0}, properties: %{covered: false, ring: :outer}, srid: nil},
+      %Geo.Point{coordinates: {2.5, 1.75}, properties: %{covered: false, ring: :intersection}, srid: nil}
+    ]),
+    MapSet.new([
+      %Geo.Point{coordinates: {2.0, 2.0}, properties: %{covered: true, ring: :inner}, srid: nil},
+      %Geo.Point{coordinates: {2.5, 1.75}, properties: %{covered: false, ring: :intersection}, srid: nil}
     ]),
     MapSet.new([
       %Geo.Point{coordinates: {1.0, 1.0}, properties: %{covered: false, ring: :outer}, srid: nil},
       %Geo.Point{coordinates: {1.0, 3.0}, properties: %{covered: false, ring: :outer}, srid: nil}
-    ]),
-    MapSet.new([
-      %Geo.Point{coordinates: {4.0, 1.0}, properties: %{covered: false, ring: :inner}, srid: nil},
-      %Geo.Point{coordinates: {4.0, 3.0}, properties: %{covered: false, ring: :inner}, srid: nil}
     ])
   ]}
   ```
@@ -144,7 +121,18 @@ defmodule GeoPartition.Geometry do
     {vertices, edges} = List.foldl(holes, {v, e}, &add_ring_to_graph(&2, &1, :inner))
                         |> add_coverage(coords)
                         |> add_intersections
+                        |> Graph.delete_vertices_by(&(&1.properties.ring == :inner && !&1.properties.covered))
+                        |> Graph.delete_vertices_by(&(&1.properties.ring == :outer && &1.properties.covered))
+                        |> reduce_intersection_edges
     {vertices, edges}
+  end
+
+  defp filter_edges({v, e}) do
+    {v, Enum.filter(e, fn(x) ->
+      MapSet.to_list(x)
+      |> Enum.find(&(&1.properties.ring == :outer && !&1.properties.covered))
+      |> is_nil
+    end)}
   end
 
   defp add_ring_to_graph(intial = {v, e}, ring, ring_type) do
@@ -206,17 +194,29 @@ defmodule GeoPartition.Geometry do
   defp covered?([], point), do: false
 
   defp add_intersections({v, e}) do
-    for x <- e, y <- e do
+    inters = for x <- e, y <- e do
       case intersection(edge_to_seg(x), edge_to_seg(y)) do
         {:intersects, point} ->
           props = %{covered: false, ring: :intersection}
-          {Map.put(point, :properties, props), MapSet.new([x, y])}
+          {Map.put(point, :properties, props), [x, y]}
         _ -> nil
       end
     end
     |> Enum.reject(&is_nil(&1))
-    |> Enum.uniq
-    |> List.foldr({v, e}, fn({p, es}, {acc_v, acc_e}) -> Graph.subdivide({acc_v, acc_e}, MapSet.to_list(es), p) end)
+    |> List.first
+    case inters do
+      nil -> {v, e}
+      {p, edges} -> add_intersections(Graph.subdivide({v, e}, edges, p))
+    end
+  end
+
+
+  defp reduce_intersection_edges({v, e}) do
+    edges = Enum.reject(e, fn(ed) ->
+      [x, y] = MapSet.to_list(ed)
+      x.properties.ring == :intersection && y.properties.ring == :intersection
+    end)
+    {v, edges}
   end
 
   defp points_to_seg([a, b]) do

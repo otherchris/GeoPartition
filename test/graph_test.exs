@@ -122,35 +122,4 @@ defmodule GeoPartition.GraphTest do
       ]
     }
   end
-
-  describe "dehole" do
-    test "dehole" do
-      #%{vertices: v, edges: e} = Graph.from_polygon(Shapes.rect_with_corner_hole)
-      #IO.inspect Graph.dehole({v, e})
-    end
-
-    test "to po9lygon" do
-      {v, e} = Graph.from_polygon(Shapes.intersecting_diamonds)
-      deholed = Graph.dehole({v, e})
-      Graph.to_polygon(deholed)
-      |> Geo.JSON.encode!
-      |> Poison.encode!
-      |> IO.puts
-    end
-
-    test "find path" do
-      vs = [1, 2, 3, 4, 5, 6, 7]
-      set = [
-        MapSet.new([1, 2]),
-        MapSet.new([2, 3]),
-        MapSet.new([3, 4]),
-        MapSet.new([4, 6]),
-        MapSet.new([6, 7]),
-        MapSet.new([3, 5])
-      ]
-      #IO.inspect {"delete evens", Graph.delete_vertices_by({vs, set}, &(rem(&1, 2) == 0))}
-        #IO.inspect Graph.find_path_by({vs, set}, 5, &(&1 || true), [1])
-    end
-  end
-
 end
