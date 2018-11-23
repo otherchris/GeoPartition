@@ -2,37 +2,88 @@ defmodule GeoPartition.Partition do
 
   alias GeoPartition.{Geometry, Graph, Util}
 
-  def partition(shape = %{__struct__: Geo.Polygon, coordinates: [ring]}) do
-    ring
-    |> add_split(0)
+  def partition(shape = %{__struct__: Geo.Polygon}, max_area) do
+    polys = partition_list([shape], max_area)
+            |> Enum.map(&(&1.coordinates))
+    %Geo.MultiPolygon{coordinates: polys}
   end
 
-  def add_split(ring, target) do
-    dups = get_dups(ring)
-    {opposite, _} = ring
-                    |> length
-                    |> Kernel./(2)
-                    |> Float.to_string
-                    |> Integer.parse
-    opposite_vertex = Enum.at(ring, opposite)
-    target_vertex = Enum.at(ring, target)
-                    # exhausted source?
-    if abs(target) >= opposite do
-      add_split(GeoPartition.DeHole.rotate_poly_ring(ring), 0)
+  def partition_list(list_of_polys, max_area) do
+    new_list = Enum.map(list_of_polys, &maybe_split(&1, max_area)) |> List.flatten
+    if length(new_list) == length(list_of_polys) do
+      new_list
     else
-      line = %Geo.LineString{coordinates: [hd(ring), Enum.at(ring, opposite + target)]}
-      poly = %Geo.Polygon{ coordinates: [ring] }
-      poly1 = %Geo.Polygon{coordinates: [Enum.slice(ring, 0..(opposite + target)) ++ [hd(ring)]]}
-      poly2 = %Geo.Polygon{coordinates: [[hd(ring)] ++ Enum.slice(ring, (opposite + target)..-1) ++ [hd(ring)]]}
-      if Util.contains(poly, line) && !Enum.member?(dups, target_vertex) && !Enum.member?(dups, opposite_vertex) do
-        [
-          %Geo.Polygon{coordinates: [Enum.slice(ring, 0..(opposite + target)) ++ [hd(ring)]]},
-          %Geo.Polygon{coordinates: [[hd(ring)] ++ Enum.slice(ring, (opposite + target)..-1) ++ [hd(ring)]]}
-        ]
-      else
-        add_split(ring, inc(target))
-      end
+      partition_list(new_list, max_area)
     end
+  end
+
+  defp maybe_split(polygon, max_area) do
+    IO.inspect polygon
+    clean_poly = polygon
+                 |> Geometry.polygon_to_graph
+                 |> Geometry.cycle_to_polygon
+    if Geometry.area(clean_poly, [geo: :globe]) > max_area do
+      {:ok, {ring1, ring2}} = add_split(Enum.at(clean_poly.coordinates, 0), 0, 0)
+      [
+        %Geo.Polygon{coordinates: [ring1]},
+        %Geo.Polygon{coordinates: [ring2]}
+      ]
+    else
+      [polygon]
+    end
+  end
+
+  def diameter(ring) do
+    {res, _} = ring
+               |> length
+               |> Kernel./(2)
+               |> Float.to_string
+               |> Integer.parse
+    res
+  end
+
+  def add_split(ring, source, offset) do
+    IO.inspect "trying #{inspect {source, offset}}"
+    d = diameter(ring)
+    ring = if length(ring) == 3 do
+      add_split_triangle(ring)
+    else
+      ring
+    end
+    IO.inspect ring
+    short_ring = Enum.slice(ring, 0..-2)
+    cond do
+      source >= d -> {:error, "no split"}
+      abs(offset) >= d - 1 -> add_split(ring, source + 1, 0)
+      true ->
+        opposite_vertex = Enum.at(ring, d + offset)
+        source_vertex = Enum.at(ring, source)
+        line = %Geo.LineString{coordinates: [source_vertex, opposite_vertex]}
+        if Geometry.crosses?(%Geo.LineString{coordinates: ring}, line) do
+          add_split(ring, source, inc(offset))
+        else
+          ring1 = Enum.slice(short_ring, source..(d + offset)) ++ [Enum.at(short_ring, source)]
+          ring2 = Enum.slice(short_ring, (d + offset)..-1) ++ Enum.slice(short_ring, 0..source) ++ [Enum.at(short_ring, d + offset)]
+          {:ok, {ring1, ring2}}
+        end
+    end
+  end
+
+  def add_split_triangle(ring) do
+    sorted_ring = ring
+                  |> Enum.chunk_every(2, 1, :discard)
+                  |> Enum.sort_by(&seg_len([&1, &2]))
+    new_point = midpoint(List.last(sorted_ring))
+    i = Enum.find_index(ring, List.first(List.last(sorted_ring)))
+    Enum.slice(ring, 0..i) ++ [new_point] ++ Enum.slice(ring, i + 1..-1)
+  end
+
+  def seg_len([a = {a1, a2}, b = {b1, b2}]) do
+    :math.pow(a1 - b1, 2) + :math.pow(a2 - b2, 2)
+  end
+
+  def midpoint([a = {a1, a2}, b = {b1, b2}]) do
+    {(a1 - b1) /  2, (a2 - b2) / 2}
   end
 
   defp split_check(polys = [poly1, poly2, ref]) do
@@ -68,23 +119,23 @@ defmodule GeoPartition.Partition do
   ```
 
   iex> shape = %Geo.Polygon{
-  ...>   coordinates: [
-  ...>     [
-  ...>       {0.0, 0.0},
-  ...>       {4.0, 0.0},
-  ...>       {4.0, 3.0},
-  ...>       {0.0, 3.0},
-  ...>       {0.0, 0.0},
-  ...>     ],
-  ...>     [
-  ...>       {1.0, 1.0},
-  ...>       {3.0, 1.0},
-  ...>       {3.0, 4.0},
-  ...>       {1.0, 4.0},
-  ...>       {1.0, 1.0},
-  ...>     ]
-  ...>   ]
-  ...> }
+    ...>   coordinates: [
+      ...>     [
+        ...>       {0.0, 0.0},
+        ...>       {4.0, 0.0},
+        ...>       {4.0, 3.0},
+        ...>       {0.0, 3.0},
+        ...>       {0.0, 0.0},
+        ...>     ],
+      ...>     [
+        ...>       {1.0, 1.0},
+        ...>       {3.0, 1.0},
+        ...>       {3.0, 4.0},
+        ...>       {1.0, 4.0},
+        ...>       {1.0, 1.0},
+        ...>     ]
+      ...>   ]
+    ...> }
   iex> GeoPartition.Partition.dehole(shape)
   %Geo.Polygon{
     coordinates: [
