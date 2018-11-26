@@ -18,10 +18,12 @@ defmodule GeoPartition.Partition do
   end
 
   defp maybe_split(polygon, max_area) do
-    IO.inspect polygon
+    IO.puts polygon |> Geo.JSON.encode! |> Poison.encode!
     clean_poly = polygon
                  |> Geometry.polygon_to_graph
                  |> Geometry.cycle_to_polygon
+    IO.puts "clean"
+    IO.puts clean_poly |> Geo.JSON.encode! |> Poison.encode!
     if Geometry.area(clean_poly, [geo: :globe]) > max_area do
       {:ok, {ring1, ring2}} = add_split(Enum.at(clean_poly.coordinates, 0), 0, 0)
       [
@@ -43,39 +45,82 @@ defmodule GeoPartition.Partition do
   end
 
   def add_split(ring, source, offset) do
-    IO.inspect "trying #{inspect {source, offset}}"
+    IO.inspect {source, offset}
     d = diameter(ring)
-    ring = if length(ring) == 3 do
+    ring = if length(ring) == 4 do
       add_split_triangle(ring)
     else
-      ring
-    end
-    IO.inspect ring
-    short_ring = Enum.slice(ring, 0..-2)
-    cond do
-      source >= d -> {:error, "no split"}
-      abs(offset) >= d - 1 -> add_split(ring, source + 1, 0)
-      true ->
-        opposite_vertex = Enum.at(ring, d + offset)
-        source_vertex = Enum.at(ring, source)
-        line = %Geo.LineString{coordinates: [source_vertex, opposite_vertex]}
-        if Geometry.crosses?(%Geo.LineString{coordinates: ring}, line) do
-          add_split(ring, source, inc(offset))
-        else
-          ring1 = Enum.slice(short_ring, source..(d + offset)) ++ [Enum.at(short_ring, source)]
-          ring2 = Enum.slice(short_ring, (d + offset)..-1) ++ Enum.slice(short_ring, 0..source) ++ [Enum.at(short_ring, d + offset)]
-          {:ok, {ring1, ring2}}
-        end
+      short_ring = Enum.slice(ring, 0..-2)
+      cond do
+        source >= d -> {:error, "no split"}
+        abs(offset) >= d - 1 -> add_split(ring, source + 1, 0)
+        true ->
+          if good_line(ring, source, d + offset + source) do
+            make_split(ring, source, d + offset)
+          else
+            add_split(ring, source, inc(offset))
+          end
+      end
     end
   end
 
+  @doc """
+  Tests if a given pair of vertices form an acceptable split of a ring
+
+  ## Examples
+  ```
+  iex> ring = [{1, 1}, {2, 0}, {3, 1}, {2, 2}, {1, 1}]
+  iex> GeoPartition.Partition.good_line(ring, 1, 3)
+  true
+
+
+  iex> ring = [{1, 1}, {2, 0}, {3, 1}, {2, 2}, {1, 1}]
+  iex> GeoPartition.Partition.good_line(ring, 1, 2)
+  false
+
+  iex> ring = [{2, 0}, {0, 1}, {0, 2}, {2, 4}, {1, 2}, {1, 1}, {2, 1}, {2, 0}]
+  iex> GeoPartition.Partition.good_line(ring, 0, 4)
+  false
+  ```
+  """
+  def good_line(ring, source, target) do
+    if abs(source - target) <= 1 do
+      false
+    else
+      !Geometry.crosses?(
+        %Geo.LineString{coordinates: ring},
+        %Geo.LineString{coordinates: [Enum.at(ring, source), Enum.at(ring, target)]}
+      )
+    end
+  end
+
+  @doc """
+  Once a safe split is identified, make the split
+
+  ## Examples
+  ```
+  iex> ring = [{1, 1}, {2, 0}, {3, 1}, {2, 2}, {1, 1}]
+  iex> GeoPartition.Partition.make_split(ring, 1, 3)
+  {:ok, {[{2, 0}, {3, 1}, {2, 2}, {2, 0}], [{2, 2}, {1, 1}, {2, 0}, {2, 2}]}}
+  ```
+  """
+  def make_split(ring, source, target) do
+    short_ring = Enum.slice(ring, 0..-2)
+    ring1 = Enum.slice(short_ring, source..target) ++ [Enum.at(short_ring, source)]
+    ring2 = Enum.slice(short_ring, target..-1) ++ Enum.slice(short_ring, 0..source) ++ [Enum.at(short_ring, target)]
+    {:ok, {ring1, ring2}}
+  end
+
   def add_split_triangle(ring) do
-    sorted_ring = ring
-                  |> Enum.chunk_every(2, 1, :discard)
-                  |> Enum.sort_by(&seg_len([&1, &2]))
-    new_point = midpoint(List.last(sorted_ring))
-    i = Enum.find_index(ring, List.first(List.last(sorted_ring)))
-    Enum.slice(ring, 0..i) ++ [new_point] ++ Enum.slice(ring, i + 1..-1)
+    IO.inspect "TRIANGLE"
+    split_seg = ring
+                |> Enum.chunk_every(2, 1, :discard)
+                |> Enum.sort_by(&seg_len(&1))
+                |> List.last
+    new_point = midpoint(split_seg)
+    other_point = Enum.find(ring, &(!Enum.member?(split_seg, &1)))
+    {:ok, {[other_point, List.first(split_seg), new_point, other_point], [other_point, List.last(split_seg), new_point, other_point]}}
+    |> IO.inspect
   end
 
   def seg_len([a = {a1, a2}, b = {b1, b2}]) do
@@ -83,7 +128,7 @@ defmodule GeoPartition.Partition do
   end
 
   def midpoint([a = {a1, a2}, b = {b1, b2}]) do
-    {(a1 - b1) /  2, (a2 - b2) / 2}
+    {(a1 + b1) /  2, (a2 + b2) / 2}
   end
 
   defp split_check(polys = [poly1, poly2, ref]) do
@@ -119,23 +164,23 @@ defmodule GeoPartition.Partition do
   ```
 
   iex> shape = %Geo.Polygon{
-    ...>   coordinates: [
-      ...>     [
-        ...>       {0.0, 0.0},
-        ...>       {4.0, 0.0},
-        ...>       {4.0, 3.0},
-        ...>       {0.0, 3.0},
-        ...>       {0.0, 0.0},
-        ...>     ],
-      ...>     [
-        ...>       {1.0, 1.0},
-        ...>       {3.0, 1.0},
-        ...>       {3.0, 4.0},
-        ...>       {1.0, 4.0},
-        ...>       {1.0, 1.0},
-        ...>     ]
-      ...>   ]
-    ...> }
+  ...>   coordinates: [
+  ...>     [
+  ...>       {0.0, 0.0},
+  ...>       {4.0, 0.0},
+  ...>       {4.0, 3.0},
+  ...>       {0.0, 3.0},
+  ...>       {0.0, 0.0},
+  ...>     ],
+  ...>     [
+  ...>       {1.0, 1.0},
+  ...>       {3.0, 1.0},
+  ...>       {3.0, 4.0},
+  ...>       {1.0, 4.0},
+  ...>       {1.0, 1.0},
+  ...>     ]
+  ...>   ]
+  ...> }
   iex> GeoPartition.Partition.dehole(shape)
   %Geo.Polygon{
     coordinates: [

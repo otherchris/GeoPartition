@@ -212,8 +212,7 @@ defmodule GeoPartition.GeometryTest do
     end
 
     test "degen" do
-      assert Geometry.intersection(Shapes.ref_line, Shapes.overlap_line) == {:degen, "degen"}
-      assert Geometry.intersection(Shapes.ref_line, Shapes.incident_line) == {:degen, "degen"}
+      assert Geometry.intersection(Shapes.ref_line, Shapes.incident_line) == {:incident, "incident"}
     end
   end
 

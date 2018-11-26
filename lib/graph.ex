@@ -76,10 +76,11 @@ defmodule GeoPartition.Graph do
   """
   @spec cycle_sort(graph) :: {:ok, graph} | {:error, string}
   def cycle_sort(graph = {v, e}) do
-    if length(v) != length(e) do
+    v_uniq = Enum.uniq(v)
+    if length(v_uniq) != length(e) do
       {:error, "not a cycle"}
     else
-      cycle_sort_fun({v, e})
+      cycle_sort_fun({v_uniq, e})
     end
   end
 

@@ -296,28 +296,52 @@ defmodule GeoPartition.Geometry do
   iex> intersect = %Geo.LineString{coordinates: [{2.0, 1.0}, {1.0, 2.0}]}
   iex> GeoPartition.Geometry.crosses?(reference, intersect)
   true
+
+  iex> reference = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 2.0}, {2.5, 1.5}, {2.0, 1.0}, {2.5, 0.5}, {2.0, 0.0}, {1.0, 1.0}]}
+  iex> good = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.5, 1.5}]}
+  iex> GeoPartition.Geometry.crosses?(reference, good)
+  false
+
+  iex> seg = %Geo.LineString{coordinates: [{-84.15544774212663,36.90341222036663} ,{-84.17861938476563,36.83401954216856}]}
+  iex> reference = %Geo.LineString{coordinates: [{-84.17861938476563,36.83401954216856},{-84.23904418945313,36.875775782851},{-84.17381286621094,36.91641125204138},{-84.15544774212663,36.90341222036663},{-84.16557312011717,36.887858857884986},{-84.17861938476563,36.83401954216856}]}
+  iex> Topo.contains?(reference, seg)
+  true
+
+  iex> seg = %Geo.LineString{coordinates: [{2.0, 1.0}, {2.0, 2.0}]}
+  iex> poly = %Geo.Polygon{coordinates: [Enum.reverse([{2.0, 1.0}, {2.5, 1.5}, {2.0, 2.0}, {1.0, 1.0}, {2.0, 1.0}])]}
+  iex> Topo.contains?(poly, seg)
+  true
+
   ```
   """
   @spec crosses?(Geo.LineString, Geo.LineString) :: boolean
   def crosses?(a = %{__struct__: Geo.LineString}, b = %{__struct__: Geo.LineString}) do
-    Topo.intersects?(a, b)
-    && !Enum.member?(a.coordinates, List.first(b.coordinates))
-    && !Enum.member?(a.coordinates, List.last(b.coordinates))
-    && !(Topo.contains?(b, a) || Topo.contains?(a, b))
-    && !Topo.contains?(a, %Geo.Point{coordinates: hd(b.coordinates)})
-    && !Topo.contains?(a, %Geo.Point{coordinates: List.last(b.coordinates)})
+    a_list = a.coordinates |> Enum.chunk_every(2, 1, :discard)
+    b_list = b.coordinates |> Enum.chunk_every(2, 1, :discard)
+    for a_edge <- a_list, b_edge <- b_list do
+      case intersection(%Geo.LineString{coordinates: a_edge}, %Geo.LineString{coordinates: b_edge}) do
+        {:intersects, _} -> true
+        _ -> false
+      end
+    end
+    |> List.foldl(false, &(&1 || &2))
   end
 
   @doc """
   Find the intersection point of two LineStrings. Returns a tuple indicating the
   type of intersection:
   - `:disjoint`, the LineStrings have no points in common
-  - `:degen`, the LineStrings share points but are collinear, or endpoint of one
-  incident with non-endpoint of other
+  - `:degen`, the LineStrings share points but are collinear, the endpoint of one
+  incident with non-endpoint of other, or they share an endpoint
   - `:intersects`, the LineStrings have a non-trivial point of intersection
 
   ## Examples
   ```
+  iex> reference = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 2.0}]}
+  iex> disjoint = %Geo.LineString{coordinates: [{2.0, 1.0}, {2.0, 2.0}]}
+  iex> GeoPartition.Geometry.intersection(reference, disjoint)
+  {:endpoint, "endpoint"}
+
   iex> reference = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 2.0}]}
   iex> disjoint = %Geo.LineString{coordinates: [{2.0, 1.0}, {3.0, 2.0}]}
   iex> GeoPartition.Geometry.intersection(reference, disjoint)
@@ -337,8 +361,13 @@ defmodule GeoPartition.Geometry do
   @spec intersection(Geo.LineString, Geo.LineString) :: {atom, any}
   def intersection(l1 = %{coordinates: [a = {x1, y1}, b = {x2, y2}]}, l2 = %{coordinates: [c = {x3, y3}, d = {x4, y4}]}) do
     cond do
+      a == c || a == d || b == c || b == d -> {:endpoint, "endpoint"}
+      collinear?(a, c, d) && collinear?(b, c, d) && Topo.intersects?(l1, l2) -> {:degen, "degen"}
+        collinear?(a, c, d) ||
+          collinear?(b, c, d) ||
+            collinear?(a, b, c) ||
+              collinear?(a, b, d) -> {:incident, "incident"}
       !Topo.intersects?(l1, l2) -> {:disjoint, "disjoint"}
-      !crosses?(l1, l2) && Topo.intersects?(l1, l2) -> {:degen, "degen"}
       true ->
         u = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / ((y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1))
         {:intersects, %Geo.Point{
@@ -348,6 +377,63 @@ defmodule GeoPartition.Geometry do
           }
 
         }}
+    end
+  end
+
+  def shrink(a = %{coordinates: [{x1, y1}, {x2, y2}]}) do
+    eps = 0.00000001
+    [xlg, ylg] = [x1 > x2, y1 > y2]
+    if x1 == x2 do
+      a = {
+        x1,
+        if ylg do
+          y1 - eps
+        else
+          y1 + eps
+        end
+      }
+      b = {
+        x2,
+        if ylg do
+          y2 + eps
+        else
+          y2 - eps
+        end
+      }
+      %Geo.LineString{coordinates: [a, b]}
+    else
+      xfac = eps * (x2 - x1)
+      yfac = eps * (y2 - y1)
+      a = {
+          x1 + xfac,
+          y1 + yfac
+      }
+      b = {
+          x2 - xfac,
+          y2 - yfac
+      }
+      %Geo.LineString{coordinates: [a, b]}
+    end
+  end
+
+  @doc """
+  Check if three points are collinear
+
+  ## Examples
+  ```
+  iex> GeoPartition.Geometry.collinear?({1, 1}, {2, 2}, {3, 3})
+  true
+
+  iex> GeoPartition.Geometry.collinear?({1, 1}, {2, 2}, {3, 4})
+  false
+  ```
+  """
+  @spec collinear?({any, any}, {any, any}, {any, any}) :: boolean
+  def collinear?(a = {x1, y1}, b = {x2, y2}, c = {x3, y3}) do
+    case x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2) do
+      0 -> true
+      0.0 -> true
+      _ -> false
     end
   end
 
@@ -392,11 +478,11 @@ defmodule GeoPartition.Geometry do
 
   defp ring_area(shape = [{a, b}|_], opts) do
     flat_area = shape
-    |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.map(&Util.det_seg(&1))
-    |> List.foldr(0, &Kernel.+(&1, &2))
-    |> Kernel./(2)
-    |> abs
+                |> Enum.chunk_every(2, 1, :discard)
+                |> Enum.map(&Util.det_seg(&1))
+                |> List.foldr(0, &Kernel.+(&1, &2))
+                |> Kernel./(2)
+                |> abs
     if opts[:geo] == :globe do
       flat_area
       |> Kernel.*(get_long_factor(shape))
