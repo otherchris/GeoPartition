@@ -20,16 +20,27 @@ defmodule GeoPartition.Partition do
   defp maybe_split(polygon, max_area) do
     clean_poly = polygon
                  |> Geometry.polygon_to_graph
-                 |> Geometry.cycle_to_polygon
-    if Geometry.area(clean_poly, [geo: :globe]) > max_area do
-      {:ok, {ring1, ring2}} = add_split(Enum.at(clean_poly.coordinates, 0), 0, 0)
+                 |> Geometry.graph_to_polygon
+    holed_poly = Map.put(clean_poly, :coordinates, clean_poly.coordinates ++ drop_bad_holes(polygon))
+    if Geometry.area(holed_poly, [geo: :globe]) > max_area do
+      {:ok, {ring1, ring2}} = add_split(Enum.at(holed_poly.coordinates, 0), 0, 0)
       [
-        %Geo.Polygon{coordinates: [ring1]},
-        %Geo.Polygon{coordinates: [ring2]}
+        %Geo.Polygon{coordinates: [ring1] ++ drop_bad_holes(polygon)},
+        %Geo.Polygon{coordinates: [ring2] ++ drop_bad_holes(polygon)}
       ]
     else
       [polygon]
     end
+  end
+
+  defp drop_bad_holes(polygon) do
+    [outer|holes] = polygon.coordinates
+    holes
+    |> Enum.reject(&is_bad_hole(outer, &1))
+  end
+
+  defp is_bad_hole(outer, hole) do
+    !Topo.contains?(%Geo.Polygon{coordinates: [outer]}, %Geo.Polygon{coordinates: [hole]})
   end
 
   @doc """
@@ -116,10 +127,15 @@ defmodule GeoPartition.Partition do
            :incident -> false
            :disjoint -> true
          end && acc
-       end)
+       end) && Topo.contains?(%Geo.Polygon{coordinates: [ring]}, midpoint_point(line))
     end
   end
 
+  defp midpoint_point(line = %{coordinates: [{x1, y1}, {x2, y2}]}) do
+    x = (x1 + x2) / 2
+    y = (y1 + y2) / 2
+    %Geo.Point{coordinates: {x, y}}
+  end
   @doc """
   Rotate a list until a given index is the first element
 
@@ -161,7 +177,6 @@ defmodule GeoPartition.Partition do
   end
 
   def add_split_triangle(ring) do
-    IO.inspect "TRIANGLE"
     split_seg = ring
                 |> Enum.chunk_every(2, 1, :discard)
                 |> Enum.sort_by(&seg_len(&1))
@@ -169,7 +184,6 @@ defmodule GeoPartition.Partition do
     new_point = midpoint(split_seg)
     other_point = Enum.find(ring, &(!Enum.member?(split_seg, &1)))
     {:ok, {[other_point, List.first(split_seg), new_point, other_point], [other_point, List.last(split_seg), new_point, other_point]}}
-    |> IO.inspect
   end
 
   def seg_len([a = {a1, a2}, b = {b1, b2}]) do
@@ -253,7 +267,7 @@ defmodule GeoPartition.Partition do
   def dehole(poly = %Geo.Polygon{}) do
     graph = poly
             |> Geometry.polygon_to_graph
-            |> Geometry.cycle_to_polygon
+            |> Geometry.graph_to_polygon
   end
 
   defp uncovered_inner(vertex) do

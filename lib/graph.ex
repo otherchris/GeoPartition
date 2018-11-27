@@ -54,7 +54,7 @@ defmodule GeoPartition.Graph do
   end
 
   @doc """
-  If a graph is a cycle, returns the graph with the edeges in cycle order
+  If a graph is composed of disjoint cycles, returns the graph with the edges in cycle order
 
   ## Examples
   ```
@@ -66,21 +66,20 @@ defmodule GeoPartition.Graph do
   iex> v = [1, 2, 3, 4]
   iex> e = [MapSet.new([1, 2]), MapSet.new([2, 3]), MapSet.new([4, 1]), MapSet.new([3, 4]), MapSet.new([2, 4])]
   iex> GeoPartition.Graph.cycle_sort({v, e})
-  {:error, "not a cycle"}
+  {:error, "not cycles"}
 
   iex> v = [1, 2, 3, 4]
   iex> e = [MapSet.new([1, 2]), MapSet.new([2, 3]), MapSet.new([2, 4]), MapSet.new([3, 4])]
   iex> GeoPartition.Graph.cycle_sort({v, e})
-  {:error, "not a cycle"}
+  {:error, "not cycles"}
   ```
   """
   @spec cycle_sort(graph) :: {:ok, graph} | {:error, string}
   def cycle_sort(graph = {v, e}) do
-    v_uniq = Enum.uniq(v)
-    if length(v_uniq) != length(e) do
-      {:error, "not a cycle"}
+    if length(v) != length(e) do
+      {:error, "not cycles"}
     else
-      cycle_sort_fun({v_uniq, e})
+      cycle_sort_fun({v, e})
     end
   end
 
@@ -89,7 +88,7 @@ defmodule GeoPartition.Graph do
            |> hd
            |> Enum.to_list
     case find_path_by({v, tl(e)}, List.first(edge), List.last(edge), &(&1 || true), &(&1)) do
-      nil -> {:error, "not a cycle"}
+      nil -> {:error, "not cycles"}
       edges -> {:ok, {v, edges ++ [MapSet.new(edge)]}}
     end
   end
