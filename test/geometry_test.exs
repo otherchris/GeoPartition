@@ -184,24 +184,6 @@ defmodule GeoPartition.GeometryTest do
     end
   end
 
-  describe "crosses? finds non-trivially intersecting segments" do
-    test "intersects" do
-      assert Geometry.crosses?(Shapes.ref_line, Shapes.intersect_line) == true
-    end
-
-    test "disjoint" do
-      assert Geometry.crosses?(Shapes.ref_line, Shapes.disjoint_line) == false
-    end
-
-    test "overlap" do
-      assert Geometry.crosses?(Shapes.ref_line, Shapes.overlap_line) == false
-    end
-
-    test "incident" do
-      assert Geometry.crosses?(Shapes.ref_line, Shapes.incident_line) == false
-    end
-  end
-
   describe "intersection finds the intersection" do
     test "intersection" do
       assert Geometry.intersection(Shapes.ref_line, Shapes.intersect_line) == {:intersects, Shapes.intersect_point}

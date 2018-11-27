@@ -82,6 +82,13 @@ defmodule GeoPartition.Geometry do
   ...>       {4.0, 1.0},
   ...>       {4.0, 3.0},
   ...>       {2.0, 2.0}
+  ...>     ],
+  ...>     [
+  ...>       {1.4, 2.4},
+  ...>       {1.4, 1.6},
+  ...>       {1.8, 1.6},
+  ...>       {1.8, 2.4},
+  ...>       {1.4, 2.4}
   ...>     ]
   ...>   ]
   ...> }
@@ -90,6 +97,10 @@ defmodule GeoPartition.Geometry do
     %Geo.Point{ coordinates: {1.0, 1.0}, properties: %{covered: false, ring: :outer}, srid: nil },
     %Geo.Point{ coordinates: {1.0, 3.0}, properties: %{covered: false, ring: :outer}, srid: nil },
     %Geo.Point{ coordinates: {2.0, 2.0}, properties: %{covered: true, ring: :inner}, srid: nil },
+    %Geo.Point{ coordinates: {1.4, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil },
+    %Geo.Point{ coordinates: {1.4, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil },
+    %Geo.Point{ coordinates: {1.8, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil },
+    %Geo.Point{ coordinates: {1.8, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil },
     %Geo.Point{ coordinates: {2.5, 1.75}, srid: nil, properties: %{covered: false, ring: :intersection} },
     %Geo.Point{ coordinates: {2.5, 2.25}, srid: nil, properties: %{covered: false, ring: :intersection} }
   ], [
@@ -112,6 +123,22 @@ defmodule GeoPartition.Geometry do
     MapSet.new([
       %Geo.Point{coordinates: {1.0, 1.0}, properties: %{covered: false, ring: :outer}, srid: nil},
       %Geo.Point{coordinates: {1.0, 3.0}, properties: %{covered: false, ring: :outer}, srid: nil}
+    ]),
+    MapSet.new([
+      %Geo.Point{coordinates: {1.4, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil},
+      %Geo.Point{coordinates: {1.4, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil}
+    ]),
+    MapSet.new([
+      %Geo.Point{coordinates: {1.8, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil},
+      %Geo.Point{coordinates: {1.4, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil}
+    ]),
+    MapSet.new([
+      %Geo.Point{coordinates: {1.8, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil},
+      %Geo.Point{coordinates: {1.8, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil}
+    ]),
+    MapSet.new([
+      %Geo.Point{coordinates: {1.8, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil},
+      %Geo.Point{coordinates: {1.4, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil}
     ])
   ]}
   ```
@@ -154,7 +181,7 @@ defmodule GeoPartition.Geometry do
     {v ++ Enum.uniq(vertices), e ++ edges}
   end
 
-  defp add_coverage({v, e}, coords = [outer|holes]) do
+  defp add_coverage({v, e}, coords) do
     vertices = add_coverage(v, coords)
     edges = add_coverage(e, coords)
     {vertices, edges}
@@ -181,7 +208,7 @@ defmodule GeoPartition.Geometry do
     end)
   end
 
-  defp covered?(rings = [[_|_]], point = %{__struct__: Geo.Point}) do
+  defp covered?(rings = [[_|_]|_], point = %{__struct__: Geo.Point}) do
     List.foldl(rings, false, &(covered?(&1, point) || &2))
   end
 
@@ -267,67 +294,6 @@ defmodule GeoPartition.Geometry do
   end
 
   @doc """
-  Determines if two LineStrings "cross", which is to say an intersection of interior
-  of each consisting of a single point.
-
-  ## Examples
-  ```
-  iex> reference = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 2.0}]}
-  iex> disjoint = %Geo.LineString{coordinates: [{2.0, 1.0}, {3.0, 2.0}]}
-  iex> GeoPartition.Geometry.crosses?(reference, disjoint)
-  false
-
-  iex> reference = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 2.0}]}
-  iex> shares_endpoint = %Geo.LineString{coordinates: [{2.0, 1.0}, {2.0, 2.0}]}
-  iex> GeoPartition.Geometry.crosses?(reference, shares_endpoint)
-  false
-
-  iex> reference = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 2.0}]}
-  iex> incident = %Geo.LineString{coordinates: [{2.0, 1.0}, {1.5, 1.5}]}
-  iex> GeoPartition.Geometry.crosses?(reference, incident)
-  false
-
-  iex> reference = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 2.0}]}
-  iex> overlap = %Geo.LineString{coordinates: [{1.5, 1.5}, {3.0, 3.0}]}
-  iex> GeoPartition.Geometry.crosses?(reference, overlap)
-  false
-
-  iex> reference = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 2.0}]}
-  iex> intersect = %Geo.LineString{coordinates: [{2.0, 1.0}, {1.0, 2.0}]}
-  iex> GeoPartition.Geometry.crosses?(reference, intersect)
-  true
-
-  iex> reference = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 2.0}, {2.5, 1.5}, {2.0, 1.0}, {2.5, 0.5}, {2.0, 0.0}, {1.0, 1.0}]}
-  iex> good = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.5, 1.5}]}
-  iex> GeoPartition.Geometry.crosses?(reference, good)
-  false
-
-  iex> seg = %Geo.LineString{coordinates: [{-84.15544774212663,36.90341222036663} ,{-84.17861938476563,36.83401954216856}]}
-  iex> reference = %Geo.LineString{coordinates: [{-84.17861938476563,36.83401954216856},{-84.23904418945313,36.875775782851},{-84.17381286621094,36.91641125204138},{-84.15544774212663,36.90341222036663},{-84.16557312011717,36.887858857884986},{-84.17861938476563,36.83401954216856}]}
-  iex> Topo.contains?(reference, seg)
-  true
-
-  iex> seg = %Geo.LineString{coordinates: [{2.0, 1.0}, {2.0, 2.0}]}
-  iex> poly = %Geo.Polygon{coordinates: [Enum.reverse([{2.0, 1.0}, {2.5, 1.5}, {2.0, 2.0}, {1.0, 1.0}, {2.0, 1.0}])]}
-  iex> Topo.contains?(poly, seg)
-  true
-
-  ```
-  """
-  @spec crosses?(Geo.LineString, Geo.LineString) :: boolean
-  def crosses?(a = %{__struct__: Geo.LineString}, b = %{__struct__: Geo.LineString}) do
-    a_list = a.coordinates |> Enum.chunk_every(2, 1, :discard)
-    b_list = b.coordinates |> Enum.chunk_every(2, 1, :discard)
-    for a_edge <- a_list, b_edge <- b_list do
-      case intersection(%Geo.LineString{coordinates: a_edge}, %Geo.LineString{coordinates: b_edge}) do
-        {:intersects, _} -> true
-        _ -> false
-      end
-    end
-    |> List.foldl(false, &(&1 || &2))
-  end
-
-  @doc """
   Find the intersection point of two LineStrings. Returns a tuple indicating the
   type of intersection:
   - `:disjoint`, the LineStrings have no points in common
@@ -377,42 +343,6 @@ defmodule GeoPartition.Geometry do
           }
 
         }}
-    end
-  end
-
-  def shrink(a = %{coordinates: [{x1, y1}, {x2, y2}]}) do
-    eps = 0.00000001
-    [xlg, ylg] = [x1 > x2, y1 > y2]
-    if x1 == x2 do
-      a = {
-        x1,
-        if ylg do
-          y1 - eps
-        else
-          y1 + eps
-        end
-      }
-      b = {
-        x2,
-        if ylg do
-          y2 + eps
-        else
-          y2 - eps
-        end
-      }
-      %Geo.LineString{coordinates: [a, b]}
-    else
-      xfac = eps * (x2 - x1)
-      yfac = eps * (y2 - y1)
-      a = {
-          x1 + xfac,
-          y1 + yfac
-      }
-      b = {
-          x2 - xfac,
-          y2 - yfac
-      }
-      %Geo.LineString{coordinates: [a, b]}
     end
   end
 

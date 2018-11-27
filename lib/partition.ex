@@ -18,12 +18,9 @@ defmodule GeoPartition.Partition do
   end
 
   defp maybe_split(polygon, max_area) do
-    IO.puts polygon |> Geo.JSON.encode! |> Poison.encode!
     clean_poly = polygon
                  |> Geometry.polygon_to_graph
                  |> Geometry.cycle_to_polygon
-    IO.puts "clean"
-    IO.puts clean_poly |> Geo.JSON.encode! |> Poison.encode!
     if Geometry.area(clean_poly, [geo: :globe]) > max_area do
       {:ok, {ring1, ring2}} = add_split(Enum.at(clean_poly.coordinates, 0), 0, 0)
       [
@@ -35,28 +32,46 @@ defmodule GeoPartition.Partition do
     end
   end
 
+  @doc """
+  Gets the _index_ of the nearset, furthest vertex in the ring
+
+  ## Examples
+  ```
+  iex> GeoPartition.Partition.diameter([10, 11, 1, 2, 3])
+  2
+
+  iex> GeoPartition.Partition.diameter([10, 11, 1, 2])
+  1
+  ```
+  """
   def diameter(ring) do
-    {res, _} = ring
-               |> length
-               |> Kernel./(2)
-               |> Float.to_string
-               |> Integer.parse
-    res
+    ring
+    |> length
+    |> Kernel./(2)
+    |> Float.ceil
+    |> Kernel.trunc
+    |> Kernel.-(1)
   end
 
+  @doc """
+  ## Examples
+  ```
+  iex> ring = [{2, 0}, {0, 1}, {0, 2}, {2, 4}, {1, 2}, {1, 1}, {2, 1}, {2, 0}]
+  iex> GeoPartition.Partition.add_split(ring, 0, 0)
+  {:ok, {[{0, 2}, {2, 4}, {1, 2}, {0, 2}], [{1, 2}, {1, 1}, {2, 1}, {2, 0}, {0, 1}, {0, 2}, {1, 2}]}}
+  ```
+  """
   def add_split(ring, source, offset) do
-    IO.inspect {source, offset}
     d = diameter(ring)
-    ring = if length(ring) == 4 do
+    if length(ring) == 4 do
       add_split_triangle(ring)
     else
-      short_ring = Enum.slice(ring, 0..-2)
       cond do
-        source >= d -> {:error, "no split"}
-        abs(offset) >= d - 1 -> add_split(ring, source + 1, 0)
+        source > d -> {:error, "no split"}
+        abs(offset) > d -> add_split(ring, source + 1, 0)
         true ->
           if good_line(ring, source, d + offset + source) do
-            make_split(ring, source, d + offset)
+            make_split(ring, source, d + offset + source)
           else
             add_split(ring, source, inc(offset))
           end
@@ -79,7 +94,7 @@ defmodule GeoPartition.Partition do
   false
 
   iex> ring = [{2, 0}, {0, 1}, {0, 2}, {2, 4}, {1, 2}, {1, 1}, {2, 1}, {2, 0}]
-  iex> GeoPartition.Partition.good_line(ring, 0, 4)
+  iex> GeoPartition.Partition.good_line(ring, 0, 3)
   false
   ```
   """
@@ -87,11 +102,45 @@ defmodule GeoPartition.Partition do
     if abs(source - target) <= 1 do
       false
     else
-      !Geometry.crosses?(
-        %Geo.LineString{coordinates: ring},
-        %Geo.LineString{coordinates: [Enum.at(ring, source), Enum.at(ring, target)]}
-      )
+      source_vertex = Enum.at(ring, source)
+      target_vertex = Enum.at(ring, target)
+      line = %Geo.LineString{coordinates: [source_vertex, target_vertex]}
+      Enum.chunk_every(ring, 2, 1, :discard)
+      |> Enum.reject(&(Enum.member?(&1, source_vertex) || Enum.member?(&1, target_vertex)))
+      |> Enum.map(&Geometry.intersection(line, %Geo.LineString{coordinates: &1}))
+      |> List.foldl(true, fn({disp, _}, acc) ->
+        case disp do
+           :intersects -> false
+           :degen -> false
+           :endpoint -> false
+           :incident -> false
+           :disjoint -> true
+         end && acc
+       end)
     end
+  end
+
+  @doc """
+  Rotate a list until a given index is the first element
+
+  ## Examples
+  ```
+  iex> GeoPartition.Partition.rotate_to([11, 12, 13, 14, 15], 2)
+  [13, 14, 15, 11, 12]
+  ```
+  """
+  def rotate_to(list, index) do
+    if index == 0 do
+      list
+    else
+      list
+      |> rotate
+      |> rotate_to(index - 1)
+    end
+  end
+
+  defp rotate(list) do
+    tl(list) ++ [hd(list)]
   end
 
   @doc """
