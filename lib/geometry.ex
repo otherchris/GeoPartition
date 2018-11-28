@@ -9,6 +9,83 @@ defmodule GeoPartition.Geometry do
   @type graph() :: {list(), list(MapSet)}
 
   @doc """
+  Removes occluding holes from a given polygon, preserving properly contained holes
+
+  ## Examples
+  ```
+  iex> shape = %Geo.Polygon{
+  ...>   coordinates: [
+  ...>     [
+  ...>       {0.0, 0.0},
+  ...>       {4.0, 0.0},
+  ...>       {4.0, 3.0},
+  ...>       {0.0, 3.0},
+  ...>       {0.0, 0.0},
+  ...>     ],
+  ...>     [
+  ...>       {1.0, 1.0},
+  ...>       {3.0, 1.0},
+  ...>       {3.0, 4.0},
+  ...>       {1.0, 4.0},
+  ...>       {1.0, 1.0},
+  ...>     ],
+  ...>     [
+  ...>       {1.0, 0.3},
+  ...>       {3.0, 0.3},
+  ...>       {3.0, 0.7},
+  ...>       {1.0, 0.3}
+  ...>     ]
+  ...>   ]
+  ...> }
+  iex> GeoPartition.Geometry.clean_holes(shape)
+  %Geo.Polygon{
+    coordinates: [
+       [
+         {0.0, 0.0},
+         {4.0, 0.0},
+         {4.0, 3.0},
+         {3.0, 3.0},
+         {3.0, 1.0},
+         {1.0, 1.0},
+         {1.0, 3.0},
+         {0.0, 3.0},
+         {0.0, 0.0},
+       ],
+       [
+         {1.0, 0.3},
+         {3.0, 0.3},
+         {3.0, 0.7},
+         {1.0, 0.3}
+       ]
+    ],
+    properties: %{},
+    srid: nil
+   }
+
+  ```
+  """
+  def clean_holes(shape = %{coordinates: [outer|holes]}) do
+    new_outer = shape
+    |> polygon_to_graph
+    |> graph_to_polygon
+    |> Map.get(:coordinates)
+    |> hd
+    %Geo.Polygon{
+      coordinates: [new_outer] ++ drop_bad_holes(shape)
+    }
+  end
+
+  defp drop_bad_holes(polygon) do
+    [outer|holes] = polygon.coordinates
+    holes
+    |> Enum.reject(&is_bad_hole(outer, &1))
+  end
+
+  defp is_bad_hole(outer, hole) do
+    !Topo.contains?(%Geo.Polygon{coordinates: [outer]}, %Geo.Polygon{coordinates: [hole]})
+  end
+
+  @doc """
   Converts a graph into a polygon
 
   ## Examples
@@ -467,7 +544,7 @@ defmodule GeoPartition.Geometry do
   ```
   """
   def area(shape = %Geo.Polygon{}, opts \\ [geo: :flat]) do
-    %{coordinates: [outer|holes]} = shape
+    %{coordinates: [outer|holes]} = shape |> clean_holes
     hole_area = holes
                 |> Enum.map(&ring_area(&1, opts))
                 |> List.foldl(0, &Kernel.+(&1, &2))

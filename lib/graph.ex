@@ -3,8 +3,6 @@ defmodule GeoPartition.Graph do
   Some functions for working with undirected graphs
   """
 
-  alias GeoPartition.{Geometry, Util}
-
   @type graph() :: {list(), list(MapSet)}
 
   @doc """
