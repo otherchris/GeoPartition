@@ -4,8 +4,6 @@ defmodule GeoPartition.Partition do
 
   def partition(shape = %{__struct__: Geo.Polygon}, max_area) do
     polys = partition_list([shape], max_area)
-            |> Enum.map(&(&1.coordinates))
-    %Geo.MultiPolygon{coordinates: polys}
   end
 
   def partition_list(list_of_polys, max_area) do

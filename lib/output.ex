@@ -23,14 +23,13 @@ defmodule GeoPartition.Output do
             |> Enum.map(&Geo.JSON.encode!(&1))
             |> Enum.map(&wrap_in_feature(&1, %{}))
     %{
-      type: "FeatureCollection",
-      features: polys
+      "type" => "FeatureCollection",
+      "features" => polys
     }
   end
 
   def format(list, :feature_collection_json) do
     format(list, :feature_collection)
-    |> Geo.JSON.encode!
     |> Poison.encode!
   end
 
@@ -38,10 +37,9 @@ defmodule GeoPartition.Output do
     polys = list
             |> Enum.map(&(poly_to_multi(&1)))
             |> Enum.map(&wrap_in_feature(&1, %{}))
-            |> Enum.map(&Geo.JSON.encode!(&1))
     %{
-      type: "FeatureCollection",
-      features: polys
+      "type" => "FeatureCollection",
+      "features" => polys
     }
   end
 
@@ -50,21 +48,26 @@ defmodule GeoPartition.Output do
     |> Poison.encode!
   end
 
-  defp get_poly_coords(poly), do: Map.get(poly, :coordinates)
-
-  defp wrap_in_feature(shape, props \\ %{}) do
+  defp wrap_in_feature(shape = %{"type" => type}, props \\ %{}) do
     %{
-      type: "Feature",
-      properties: props,
-      geometry: shape
+      "type" => "Feature",
+      "properties" =>  props,
+      "geometry" => shape
     }
   end
 
-  defp poly_to_multi(shape) do
-    shape_map = shape |> Geo.JSON.encode!
+  defp coords_to_list(coords) do
+    case coords do
+      [{a, b}|_] -> Enum.map(coords, fn({x, y}) -> [x, y] end)
+      [] -> []
+      _ -> Enum.map(coords, &([coords_to_list(&1)]))
+    end
+  end
 
-    Map.put(shape_map, "coordinates", [shape_map["coordinates"]])
-    |> Map.put("type", "MultiPolygon")
-    |> Geo.JSON.decode!
+  defp poly_to_multi(shape = %Geo.Polygon{}) do
+    %Geo.MultiPolygon{
+      coordinates: [shape.coordinates]
+    }
+    |> Geo.JSON.encode!
   end
 end
