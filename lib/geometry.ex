@@ -4,7 +4,7 @@ defmodule GeoPartition.Geometry do
   to perform calculations on map geometries
   """
 
-  alias GeoPartition.{Graph, Util}
+  alias GeoPartition.Util
 
   @type graph() :: {list(), list(MapSet)}
 
@@ -200,7 +200,7 @@ defmodule GeoPartition.Geometry do
   ```
   """
   def cycle_to_ring({v, e}) do
-    {:ok, {_, edges}} = Graph.cycle_sort({v, e})
+    {:ok, {_, edges}} = ExSimpleGraph.cycle_sort({v, e})
     coordinates = edges
                   |> Enum.chunk_every(2, 1, :discard)
                   |> Kernel.++([[List.first(edges), List.last(edges)]])
@@ -297,8 +297,8 @@ defmodule GeoPartition.Geometry do
                         |> List.foldl({v, e}, &add_ring_to_graph(&2, &1, :inner))
                         |> add_coverage(coords)
                         |> add_intersections
-                        |> Graph.delete_vertices_by(&(&1.properties.ring == :inner && !&1.properties.covered))
-                        |> Graph.delete_vertices_by(&(&1.properties.ring == :outer && &1.properties.covered))
+                        |> ExSimpleGraph.delete_vertices_by(&(&1.properties.ring == :inner && !&1.properties.covered))
+                        |> ExSimpleGraph.delete_vertices_by(&(&1.properties.ring == :outer && &1.properties.covered))
                         |> reduce_intersection_edges
     {vertices, edges}
   end
@@ -382,7 +382,7 @@ defmodule GeoPartition.Geometry do
     |> List.first
     case inters do
       nil -> {v, e}
-      {p, edges} -> add_intersections(Graph.subdivide({v, e}, edges, p))
+      {p, edges} -> add_intersections(ExSimpleGraph.subdivide({v, e}, edges, p))
     end
   end
 
