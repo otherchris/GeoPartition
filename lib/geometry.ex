@@ -94,10 +94,6 @@ defmodule GeoPartition.Geometry do
   ...>  %Geo.Point{ coordinates: {1.0, 1.0}, properties: %{covered: false, ring: :outer}, srid: nil },
   ...>  %Geo.Point{ coordinates: {1.0, 3.0}, properties: %{covered: false, ring: :outer}, srid: nil },
   ...>  %Geo.Point{ coordinates: {2.0, 2.0}, properties: %{covered: true, ring: :inner}, srid: nil },
-  ...>  %Geo.Point{ coordinates: {1.4, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil },
-  ...>  %Geo.Point{ coordinates: {1.4, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil },
-  ...>  %Geo.Point{ coordinates: {1.8, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil },
-  ...>  %Geo.Point{ coordinates: {1.8, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil },
   ...>  %Geo.Point{ coordinates: {2.5, 1.75}, srid: nil, properties: %{covered: false, ring: :intersection} },
   ...>  %Geo.Point{ coordinates: {2.5, 2.25}, srid: nil, properties: %{covered: false, ring: :intersection} }
   ...>  ], [
@@ -120,22 +116,6 @@ defmodule GeoPartition.Geometry do
   ...>  MapSet.new([
   ...>  %Geo.Point{coordinates: {1.0, 1.0}, properties: %{covered: false, ring: :outer}, srid: nil},
   ...>  %Geo.Point{coordinates: {1.0, 3.0}, properties: %{covered: false, ring: :outer}, srid: nil}
-  ...>  ]),
-  ...>  MapSet.new([
-  ...>  %Geo.Point{coordinates: {1.4, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil},
-  ...>  %Geo.Point{coordinates: {1.4, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil}
-  ...>  ]),
-  ...>  MapSet.new([
-  ...>  %Geo.Point{coordinates: {1.8, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil},
-  ...>  %Geo.Point{coordinates: {1.4, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil}
-  ...>  ]),
-  ...>  MapSet.new([
-  ...>  %Geo.Point{coordinates: {1.8, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil},
-  ...>  %Geo.Point{coordinates: {1.8, 1.6}, properties: %{covered: true, ring: :inner}, srid: nil}
-  ...>  ]),
-  ...>  MapSet.new([
-  ...>  %Geo.Point{coordinates: {1.8, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil},
-  ...>    %Geo.Point{coordinates: {1.4, 2.4}, properties: %{covered: true, ring: :inner}, srid: nil}
   ...>  ])
   ...>]}
   iex> GeoPartition.Geometry.graph_to_polygon(graph)
@@ -148,13 +128,6 @@ defmodule GeoPartition.Geometry do
         {2.5, 2.25},
         {1.0, 3.0},
         {1.0, 1.0}
-      ],
-      [
-        {1.4, 2.4},
-        {1.4, 1.6},
-        {1.8, 1.6},
-        {1.8, 2.4},
-        {1.4, 2.4}
       ]
     ]
   }

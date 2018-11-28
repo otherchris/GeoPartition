@@ -26,6 +26,7 @@ defmodule GeoPartition.Output do
       "type" => "FeatureCollection",
       "features" => polys
     }
+    |> Poison.encode!
   end
 
   def format(list, :feature_collection_json) do
@@ -41,10 +42,6 @@ defmodule GeoPartition.Output do
       "type" => "FeatureCollection",
       "features" => polys
     }
-  end
-
-  def format(list, :feature_collection_multipolygon_json) do
-    format(list, :feature_collection_multipolygon)
     |> Poison.encode!
   end
 
