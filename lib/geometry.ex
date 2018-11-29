@@ -4,8 +4,6 @@ defmodule GeoPartition.Geometry do
   to perform calculations on map geometries
   """
 
-  alias GeoPartition.Util
-
   @type graph() :: {list(), list(MapSet)}
 
   @doc """
@@ -527,7 +525,7 @@ defmodule GeoPartition.Geometry do
   defp ring_area(shape = [{a, b}|_], opts) do
     flat_area = shape
                 |> Enum.chunk_every(2, 1, :discard)
-                |> Enum.map(&Util.det_seg(&1))
+                |> Enum.map(&det_seg(&1))
                 |> List.foldr(0, &Kernel.+(&1, &2))
                 |> Kernel./(2)
                 |> abs
@@ -540,6 +538,10 @@ defmodule GeoPartition.Geometry do
     end
   end
 
+  defp det_seg([{a, b}, {c, d}]) do
+    (b * c) - (a * d)
+  end
+
   defp get_long_factor(poly = %{__struct__: Geo.MultiPolygon}) do
     poly.coordinates
     |> get_long_factor
@@ -548,9 +550,20 @@ defmodule GeoPartition.Geometry do
   defp get_long_factor(coords) when is_list(coords) do
     coords
     |> Enum.map(fn({a, b}) -> b end)
-    |> Util.geo_mean
-    |> Util.deg_to_rad
+    |> geo_mean
+    |> deg_to_rad
     |> :math.cos
     |> Kernel.*(69.172)
   end
+
+  defp geo_mean(list) do
+    list = Enum.sort(list)
+    ( List.first(list) + List.last(list) ) / 2
+  end
+
+  defp deg_to_rad(deg) do
+    deg * 2 * :math.pi / 360
+  end
+
+
 end

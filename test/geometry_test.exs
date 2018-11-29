@@ -2,7 +2,7 @@ defmodule GeoPartition.GeometryTest do
   use ExUnit.Case
   doctest GeoPartition.Geometry
 
-  alias GeoPartition.{Geometry, Shapes, Util}
+  alias GeoPartition.{Geometry, Shapes}
 
   setup do
     vertices =  [
@@ -202,18 +202,6 @@ defmodule GeoPartition.GeometryTest do
     test "find area" do
       poly = Shapes.rect_with_corner_hole
       assert Geometry.area(poly, [geo: :globe]) == 144.00153645029894
-    end
-
-    test "add area to props" do
-      poly = Shapes.rect_with_corner_hole
-      new_poly = Util.add_area(poly)
-      assert new_poly.properties.area == 144.00153645029894
-    end
-
-    test "change existing area" do
-      poly = Shapes.rect_with_corner_hole
-      new_poly = Util.add_area(poly)
-      assert new_poly.properties.area == 144.00153645029894
     end
   end
 end
