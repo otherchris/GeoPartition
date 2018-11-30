@@ -21,7 +21,7 @@ defmodule GeoPartition.Partition do
                  |> Geometry.graph_to_polygon
     holed_poly = Map.put(clean_poly, :coordinates, clean_poly.coordinates ++ drop_bad_holes(polygon))
     if Geometry.area(holed_poly, [geo: :globe]) > max_area do
-      {:ok, {ring1, ring2}} = add_split(Enum.at(holed_poly.coordinates, 0), 0, 0)
+      {:ok, {ring1, ring2}} = add_split(Enum.at(holed_poly.coordinates, 0))
       [
         %Geo.Polygon{coordinates: [ring1] ++ drop_bad_holes(polygon)},
         %Geo.Polygon{coordinates: [ring2] ++ drop_bad_holes(polygon)}
@@ -42,62 +42,14 @@ defmodule GeoPartition.Partition do
   end
 
   @doc """
-  Gets the _index_ of the nearset, furthest vertex in the ring
-
-  ## Examples
-  ```
-  iex> GeoPartition.Partition.diameter([10, 11, 1, 2, 3])
-  2
-
-  iex> GeoPartition.Partition.diameter([10, 11, 1, 2])
-  1
-  ```
-  """
-  def diameter(ring) do
-    ring
-    |> length
-    |> Kernel./(2)
-    |> Float.ceil
-    |> Kernel.trunc
-    |> Kernel.-(1)
-  end
-
-  @doc """
-  ## Examples
-  ```
-  iex> ring = [{2, 0}, {0, 1}, {0, 2}, {2, 4}, {1, 2}, {1, 1}, {2, 1}, {2, 0}]
-  iex> GeoPartition.Partition.add_split(ring, 0, 0)
-  {:ok, {[{0, 2}, {2, 4}, {1, 2}, {0, 2}], [{1, 2}, {1, 1}, {2, 1}, {2, 0}, {0, 1}, {0, 2}, {1, 2}]}}
-  ```
-  """
-  def add_split(ring, source, offset) do
-    d = diameter(ring)
-    if length(ring) == 4 do
-      add_split_triangle(ring)
-    else
-      cond do
-        source > d -> {:error, "no split"}
-        abs(offset) > d -> add_split(ring, source + 1, 0)
-        true ->
-          if good_line(ring, source, d + offset + source) do
-            make_split(ring, source, d + offset + source)
-          else
-            add_split(ring, source, inc(offset))
-          end
-      end
-    end
-  end
-
-  @doc """
-
   ## Examples
   ```
   iex> ring = [{1, 2}, {5, 5}, {2, 1}, {1, 1}, {1, 2}]
-  iex> IO.inspect GeoPartition.Partition.best_good_split(ring)
+  iex> GeoPartition.Partition.add_split(ring)
   {:ok, {[{1, 2}, {5, 5}, {2, 1}, {1, 2}], [{2, 1}, {1, 1}, {1, 2}, {2, 1}]}}
   ```
   """
-  def best_good_split(ring) do
+  def add_split(ring) do
     {_, coords} = for x <- 0..(length(ring) - 1), y <- 0..(length(ring) - 1), good_line(ring, x, y) do
       {MapSet.new([Enum.at(ring, x), Enum.at(ring, y)]), MapSet.new([x, y])}
     end
