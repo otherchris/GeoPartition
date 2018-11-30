@@ -19,16 +19,22 @@ defmodule GeoPartition.Partition do
     clean_poly = polygon
                  |> Geometry.polygon_to_graph
                  |> Geometry.graph_to_polygon
-    holed_poly = Map.put(clean_poly, :coordinates, clean_poly.coordinates ++ drop_bad_holes(polygon))
-    if Geometry.area(holed_poly, [geo: :globe]) > max_area do
+    holed_poly = clean_poly
+                 |> Map.put(:coordinates, clean_poly.coordinates ++ drop_bad_holes(polygon))
+                 |> add_area
+    if holed_poly.properties.area > max_area do
       {:ok, {ring1, ring2}} = add_split(Enum.at(holed_poly.coordinates, 0))
       [
-        %Geo.Polygon{coordinates: [ring1] ++ drop_bad_holes(polygon)},
-        %Geo.Polygon{coordinates: [ring2] ++ drop_bad_holes(polygon)}
+        %Geo.Polygon{coordinates: [ring1] ++ drop_bad_holes(polygon), properties: Map.delete(polygon.properties, :area)},
+        %Geo.Polygon{coordinates: [ring2] ++ drop_bad_holes(polygon), properties: Map.delete(polygon.properties, :area)}
       ]
     else
-      [polygon]
+      [Map.put(polygon, :properties, holed_poly.properties)]
     end
+  end
+
+  defp add_area(poly) do
+    Map.put(poly, :properties, Map.merge(poly.properties, %{area: Geometry.area(poly, [geo: :globe])}))
   end
 
   defp drop_bad_holes(polygon) do
