@@ -15,7 +15,7 @@ defmodule GeoPartition.Partition do
     end
   end
 
-  defp maybe_split(polygon, max_area) do
+  def maybe_split(polygon, max_area) do
     clean_poly = polygon
                  |> Geometry.polygon_to_graph
                  |> Geometry.graph_to_polygon
@@ -86,6 +86,26 @@ defmodule GeoPartition.Partition do
           end
       end
     end
+  end
+
+  @doc """
+
+  ## Examples
+  ```
+  iex> ring = [{1, 2}, {5, 5}, {2, 1}, {1, 1}, {1, 2}]
+  iex> IO.inspect GeoPartition.Partition.best_good_split(ring)
+  {:ok, {[{1, 2}, {5, 5}, {2, 1}, {1, 2}], [{2, 1}, {1, 1}, {1, 2}, {2, 1}]}}
+  ```
+  """
+  def best_good_split(ring) do
+    {_, coords} = for x <- 0..(length(ring) - 1), y <- 0..(length(ring) - 1), good_line(ring, x, y) do
+      {MapSet.new([Enum.at(ring, x), Enum.at(ring, y)]), MapSet.new([x, y])}
+    end
+    |> Enum.uniq
+    |> Enum.sort_by(fn({e, c}) -> seg_len(e) end)
+    |> hd
+    [a, b] = MapSet.to_list(coords)
+    make_split(ring, a, b)
   end
 
   @doc """
@@ -186,6 +206,12 @@ defmodule GeoPartition.Partition do
 
   def seg_len([a = {a1, a2}, b = {b1, b2}]) do
     :math.pow(a1 - b1, 2) + :math.pow(a2 - b2, 2)
+  end
+
+  def seg_len(a = %MapSet{}) do
+    a
+    |> MapSet.to_list
+    |> seg_len
   end
 
   def midpoint([a = {a1, a2}, b = {b1, b2}]) do

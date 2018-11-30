@@ -274,6 +274,14 @@ defmodule GeoPartition.Geometry do
     {vertices, edges}
   end
 
+  defp clean_dups({v, e}) do
+    {Enum.uniq(v), Enum.uniq(e)}
+  end
+
+  defp clean_loops({v, e}) do
+    {v, Enum.reject(e, &MapSet.size(&1) == 1)}
+  end
+
   defp filter_edges({v, e}) do
     {v, Enum.filter(e, fn(x) ->
       x
@@ -448,10 +456,10 @@ defmodule GeoPartition.Geometry do
     cond do
       a == c || a == d || b == c || b == d -> {:endpoint, "endpoint"}
       collinear?(a, c, d) && collinear?(b, c, d) && Topo.intersects?(l1, l2) -> {:degen, "degen"}
-        collinear?(a, c, d) ||
-          collinear?(b, c, d) ||
-            collinear?(a, b, c) ||
-              collinear?(a, b, d) -> {:incident, "incident"}
+      collinear?(a, c, d) ||
+      collinear?(b, c, d) ||
+      collinear?(a, b, c) ||
+      collinear?(a, b, d) -> {:incident, "incident"}
       !Topo.intersects?(l1, l2) -> {:disjoint, "disjoint"}
       true ->
         u = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / ((y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1))
@@ -479,11 +487,7 @@ defmodule GeoPartition.Geometry do
   """
   @spec collinear?({any, any}, {any, any}, {any, any}) :: boolean
   def collinear?(a = {x1, y1}, b = {x2, y2}, c = {x3, y3}) do
-    case x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2) do
-      0 -> true
-      0.0 -> true
-      _ -> false
-    end
+    abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)) < 0.0000000001
   end
 
   @doc """

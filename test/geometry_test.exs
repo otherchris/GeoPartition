@@ -203,5 +203,10 @@ defmodule GeoPartition.GeometryTest do
       poly = Shapes.rect_with_corner_hole
       assert Geometry.area(poly, [geo: :globe]) == 144.00153645029894
     end
+
+    test "two holes" do
+      poly = Shapes.top_level_test
+      assert Geometry.area(poly, [geo: :globe]) == 507.1805038844793
+    end
   end
 end

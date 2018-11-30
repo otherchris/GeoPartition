@@ -35,7 +35,7 @@ defmodule GeoPartition.MixProject do
       {:geo, "~> 3.0"},
       {:credo, "~> 0.10.0", only: [:dev, :test], runtime: false},
       {:topo, git: "git@github.com:otherchris/topo.git"},
-      {:ex_simple_graph, "~> 0.1.1"}
+      {:ex_simple_graph, "~> 0.1.3"}
     ]
   end
 end
