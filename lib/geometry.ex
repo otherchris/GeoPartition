@@ -274,23 +274,6 @@ defmodule GeoPartition.Geometry do
     {vertices, edges}
   end
 
-  defp clean_dups({v, e}) do
-    {Enum.uniq(v), Enum.uniq(e)}
-  end
-
-  defp clean_loops({v, e}) do
-    {v, Enum.reject(e, &MapSet.size(&1) == 1)}
-  end
-
-  defp filter_edges({v, e}) do
-    {v, Enum.filter(e, fn(x) ->
-      x
-      |> MapSet.to_list
-      |> Enum.find(&(&1.properties.ring == :outer && !&1.properties.covered))
-      |> is_nil
-    end)}
-  end
-
   defp add_ring_to_graph(intial = {v, e}, ring, ring_type) do
     vertices = Enum.map(ring, fn({lng, lat}) ->
       %Geo.Point{
@@ -384,40 +367,6 @@ defmodule GeoPartition.Geometry do
 
   defp edge_to_seg(e) do
     e |> MapSet.to_list |> points_to_seg
-  end
-
-  @doc """
-  Determines if a Point is _very nearly_ on a LineString. Creates a polar rectangle
-  with diagonal of 2 * epsilon (default value is less than an inch). If this rectangle
-  intersects the LineString, we say the Point is "on" the LineString.
-
-  ## Examples
-  ```
-  iex> line = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 1.0}]}
-  iex> point = %Geo.Point{coordinates: {1.5, 1.0000001}}
-  iex> GeoPartition.Geometry.soft_contains?(line, point)
-  true
-
-  iex> line = %Geo.LineString{coordinates: [{1.0, 1.0}, {2.0, 1.0}]}
-  iex> point = %Geo.Point{coordinates: {1.5, 1.0000001}}
-  iex> GeoPartition.Geometry.soft_contains?(line, point, 0.00000001)
-  false
-  ```
-  """
-  @spec soft_contains?(Geo.LineString, Geo.Point, float) :: boolean
-  def soft_contains?(line = %Geo.LineString{}, point = %Geo.Point{coordinates: {x, y}}, epsilon \\ 0.0000001) do
-    smudge = %Geo.Polygon{
-      coordinates: [
-        [
-          {x + epsilon, y},
-          {x, y + epsilon},
-          {x - epsilon, y},
-          {x, y - epsilon},
-          {x + epsilon, y}
-        ]
-      ]
-    }
-    Topo.intersects?(line, smudge)
   end
 
   @doc """
@@ -568,6 +517,4 @@ defmodule GeoPartition.Geometry do
   defp deg_to_rad(deg) do
     deg * 2 * :math.pi / 360
   end
-
-
 end

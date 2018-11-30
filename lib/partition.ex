@@ -112,28 +112,6 @@ defmodule GeoPartition.Partition do
     y = (y1 + y2) / 2
     %Geo.Point{coordinates: {x, y}}
   end
-  @doc """
-  Rotate a list until a given index is the first element
-
-  ## Examples
-  ```
-  iex> GeoPartition.Partition.rotate_to([11, 12, 13, 14, 15], 2)
-  [13, 14, 15, 11, 12]
-  ```
-  """
-  def rotate_to(list, index) do
-    if index == 0 do
-      list
-    else
-      list
-      |> rotate
-      |> rotate_to(index - 1)
-    end
-  end
-
-  defp rotate(list) do
-    tl(list) ++ [hd(list)]
-  end
 
   @doc """
   Once a safe split is identified, make the split
@@ -176,80 +154,12 @@ defmodule GeoPartition.Partition do
     {(a1 + b1) /  2, (a2 + b2) / 2}
   end
 
-  defp split_check(polys = [poly1, poly2, ref]) do
-    [p1, p2, r] = Enum.map(polys, &Geometry.area(&1))
-    is_close(p1 + p2, r)
-  end
-
-  defp is_close(x, y) do
-    abs(x - y) < 0.0000001
-  end
-
   def inc(x) do
     if x <= 0 do
       (x * -1) + 1
     else
       x * -1
     end
-  end
-
-  def get_dups(list) do
-    Enum.map(list, fn(x) ->
-      Enum.slice(list, Enum.find_index(list, &(&1==x)) + 1..-1)
-      |> Enum.find(&(&1 == x))
-    end)
-    |> Enum.reject(&is_nil(&1))
-  end
-
-  @doc """
-  If a polygon has a hole that overlaps the outer ring, redraw the outer ring to exclude
-  the occluded areas
-
-  ## Examples
-  ```
-
-  iex> shape = %Geo.Polygon{
-  ...>   coordinates: [
-  ...>     [
-  ...>       {0.0, 0.0},
-  ...>       {4.0, 0.0},
-  ...>       {4.0, 3.0},
-  ...>       {0.0, 3.0},
-  ...>       {0.0, 0.0},
-  ...>     ],
-  ...>     [
-  ...>       {1.0, 1.0},
-  ...>       {3.0, 1.0},
-  ...>       {3.0, 4.0},
-  ...>       {1.0, 4.0},
-  ...>       {1.0, 1.0},
-  ...>     ]
-  ...>   ]
-  ...> }
-  iex> GeoPartition.Partition.dehole(shape)
-  %Geo.Polygon{
-    coordinates: [
-      [
-        {0.0, 0.0},
-        {4.0, 0.0},
-        {4.0, 3.0},
-        {3.0, 3.0},
-        {3.0, 1.0},
-        {1.0, 1.0},
-        {1.0, 3.0},
-        {0.0, 3.0},
-        {0.0, 0.0}
-      ]
-    ],
-    properties: %{},
-    srid: nil
-  }
-  ````
-  """
-  def dehole(poly = %Geo.Polygon{}) do
-    graph = poly
-            |> Geometry.polygon_to_graph
-            |> Geometry.graph_to_polygon
   end
 
   defp uncovered_inner(vertex) do
