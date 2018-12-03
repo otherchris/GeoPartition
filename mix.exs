@@ -8,7 +8,7 @@ defmodule GeoPartition.MixProject do
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      elixirc_paths: ["lib", "test/support"],
+      elixirc_paths: ["lib", "test/support", "lib/topo"],
       description: "Decompose polygons into polygons smaller than a given area",
       source_url: "https://github.com/otherchris/GeoPartition",
       package: [
@@ -32,10 +32,11 @@ defmodule GeoPartition.MixProject do
       {:poison, "~> 3.1"},
       {:mix_test_watch, "~> 0.8", only: :dev, runtime: false},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
-      {:geo, "~> 3.0", override: true},
+      {:geo, "~> 3.0"},
       {:credo, "~> 0.10.0", only: [:dev, :test], runtime: false},
-      {:topo, "~> 0.1.2"},
-      {:ex_simple_graph, "~> 0.1.3"}
+      {:ex_simple_graph, "~> 0.1.3"},
+      {:vector, "~> 1.0"},
+      {:seg_seg, "~> 0.1"}
     ]
   end
 end

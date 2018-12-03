@@ -1,6 +1,6 @@
 defmodule GeoPartition.Partition do
 
-  alias GeoPartition.{Geometry, Graph}
+  alias GeoPartition.{Geometry, Graph, Topo}
 
   def partition(shape = %{__struct__: Geo.Polygon}, max_area) do
     polys = partition_list([shape], max_area)

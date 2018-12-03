@@ -4,6 +4,8 @@ defmodule GeoPartition.Geometry do
   to perform calculations on map geometries
   """
 
+  alias GeoPartition.Topo
+
   @type graph() :: {list(), list(MapSet)}
 
   @doc """

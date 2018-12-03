@@ -3,7 +3,7 @@ defmodule GeoPartition do
   Documentation for GeoPartition.
   """
 
-  alias GeoPartition.{Output, Partition}
+  alias GeoPartition.{Output, Partition, Topo}
 
   @doc """
   Decomposes a given polygon or multipolygon into a list of polygons all of which
