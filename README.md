@@ -10,7 +10,7 @@ by adding `geo_partition` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:geo_partition, "~> 0.1.0"}
+    {:geo_partition, "~> 0.1.1"}
   ]
 end
 ```
