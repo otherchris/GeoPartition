@@ -32,9 +32,9 @@ defmodule GeoPartition.MixProject do
       {:poison, "~> 3.1"},
       {:mix_test_watch, "~> 0.8", only: :dev, runtime: false},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
-      {:geo, "~> 3.0"},
+      {:geo, "~> 3.0", override: true},
       {:credo, "~> 0.10.0", only: [:dev, :test], runtime: false},
-      {:topo, git: "git@github.com:otherchris/topo.git"},
+      {:topo, "~> 0.1.2"},
       {:ex_simple_graph, "~> 0.1.3"}
     ]
   end
